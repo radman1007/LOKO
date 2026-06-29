@@ -37,7 +37,13 @@ async function create(data, actorId) {
   const result = await query(
     `INSERT INTO schools (name, code, address, phone, email)
      VALUES (:name, :code, :address, :phone, :email)`,
-    data
+    {
+      name: data.name,
+      code: data.code,
+      address: data.address || null,
+      phone: data.phone || null,
+      email: data.email || null,
+    }
   );
 
   await auditService.log({
@@ -56,7 +62,7 @@ async function update(id, data, actorId) {
   await query(
     `UPDATE schools SET name = :name, address = :address, phone = :phone, email = :email, updated_at = NOW()
      WHERE id = :id`,
-    { ...data, id }
+    { name: data.name, address: data.address || null, phone: data.phone || null, email: data.email || null, id }
   );
 
   await auditService.log({

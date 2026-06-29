@@ -133,7 +133,7 @@ async function recordInteraction(userId, { contentType, contentId, interactionTy
 
 async function listCategories(contentType) {
   return query(
-    `SELECT * FROM content_categories WHERE content_type = :type AND is_active = 1 AND deleted_at IS NULL
+    `SELECT * FROM content_categories WHERE content_type = :type AND is_active = 1
      ORDER BY sort_order`,
     { type: contentType }
   );

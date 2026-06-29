@@ -184,7 +184,7 @@ const userController = {
   },
   async create(req, res, next) {
     try {
-      const schoolId = req.user.role === 'team_admin' ? req.body.schoolId : req.user.schoolId;
+      const schoolId = req.params.schoolId || req.user.schoolId;
       return created(res, await userService.create(req.body, schoolId, req.user.id));
     } catch (err) { next(err); }
   },
@@ -388,7 +388,7 @@ const classController = {
   },
   async create(req, res, next) {
     try {
-      const schoolId = req.user.role === 'team_admin' ? req.body.schoolId : req.user.schoolId;
+      const schoolId = req.params.schoolId || req.user.schoolId;
       return created(res, await classService.create(req.body, schoolId));
     } catch (err) { next(err); }
   },
