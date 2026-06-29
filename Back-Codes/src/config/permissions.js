@@ -1,0 +1,135 @@
+const ROLES = {
+  TEAM_ADMIN: 'team_admin',
+  SCHOOL_ADMIN: 'school_admin',
+  TEACHER: 'teacher',
+  STUDENT: 'student',
+  PARENT: 'parent',
+};
+
+const PERMISSIONS = {
+  // Schools
+  SCHOOLS_READ: 'schools:read',
+  SCHOOLS_WRITE: 'schools:write',
+  SCHOOLS_DELETE: 'schools:delete',
+
+  // Users
+  USERS_READ: 'users:read',
+  USERS_WRITE: 'users:write',
+  USERS_DELETE: 'users:delete',
+  USERS_RESET_PASSWORD: 'users:reset_password',
+  USERS_VIEW_PASSWORD: 'users:view_password',
+
+  // Classes
+  CLASSES_READ: 'classes:read',
+  CLASSES_WRITE: 'classes:write',
+  CLASSES_DELETE: 'classes:delete',
+
+  // Content
+  CONTENT_READ: 'content:read',
+  CONTENT_WRITE: 'content:write',
+  CONTENT_DELETE: 'content:delete',
+
+  // Health
+  MOOD_WRITE: 'mood:write',
+  MOOD_READ_OWN: 'mood:read_own',
+  MOOD_READ_STUDENTS: 'mood:read_students',
+  SECRETS_MANAGE_OWN: 'secrets:manage_own',
+  BREATHING_WRITE: 'breathing:write',
+  GARDEN_MANAGE_OWN: 'garden:manage_own',
+
+  // Club
+  TASKS_COMPLETE: 'tasks:complete',
+  POINTS_READ_OWN: 'points:read_own',
+  TOKENS_READ_OWN: 'tokens:read_own',
+
+  // AI
+  AI_CHAT: 'ai:chat',
+  AI_REPORTS_READ: 'ai:reports_read',
+  AI_REPORTS_READ_ALL: 'ai:reports_read_all',
+
+  // Tickets
+  TICKETS_CREATE: 'tickets:create',
+  TICKETS_RESPOND: 'tickets:respond',
+  TICKETS_READ_OWN: 'tickets:read_own',
+  TICKETS_READ_ALL: 'tickets:read_all',
+
+  // Reports
+  REPORTS_SCHOOL: 'reports:school',
+  REPORTS_GLOBAL: 'reports:global',
+  REPORTS_CLASS: 'reports:class',
+  REPORTS_CHILD: 'reports:child',
+
+  // Import
+  IMPORT_EXCEL: 'import:excel',
+
+  // Audit
+  AUDIT_READ: 'audit:read',
+
+  // Parent
+  CHILDREN_MANAGE: 'children:manage',
+  CHILDREN_REPORT: 'children:report',
+};
+
+const ROLE_PERMISSIONS = {
+  [ROLES.TEAM_ADMIN]: Object.values(PERMISSIONS),
+
+  [ROLES.SCHOOL_ADMIN]: [
+    PERMISSIONS.SCHOOLS_READ,
+    PERMISSIONS.USERS_READ,
+    PERMISSIONS.USERS_WRITE,
+    PERMISSIONS.USERS_DELETE,
+    PERMISSIONS.USERS_RESET_PASSWORD,
+    PERMISSIONS.USERS_VIEW_PASSWORD,
+    PERMISSIONS.CLASSES_READ,
+    PERMISSIONS.CLASSES_WRITE,
+    PERMISSIONS.CLASSES_DELETE,
+    PERMISSIONS.CONTENT_READ,
+    PERMISSIONS.MOOD_READ_STUDENTS,
+    PERMISSIONS.TASKS_COMPLETE,
+    PERMISSIONS.AI_REPORTS_READ,
+    PERMISSIONS.TICKETS_CREATE,
+    PERMISSIONS.TICKETS_READ_OWN,
+    PERMISSIONS.REPORTS_SCHOOL,
+    PERMISSIONS.IMPORT_EXCEL,
+  ],
+
+  [ROLES.TEACHER]: [
+    PERMISSIONS.USERS_READ,
+    PERMISSIONS.CLASSES_READ,
+    PERMISSIONS.CONTENT_READ,
+    PERMISSIONS.MOOD_READ_STUDENTS,
+    PERMISSIONS.AI_REPORTS_READ,
+    PERMISSIONS.TICKETS_CREATE,
+    PERMISSIONS.TICKETS_READ_OWN,
+    PERMISSIONS.REPORTS_CLASS,
+    PERMISSIONS.USERS_DELETE,
+  ],
+
+  [ROLES.STUDENT]: [
+    PERMISSIONS.CONTENT_READ,
+    PERMISSIONS.MOOD_WRITE,
+    PERMISSIONS.MOOD_READ_OWN,
+    PERMISSIONS.SECRETS_MANAGE_OWN,
+    PERMISSIONS.BREATHING_WRITE,
+    PERMISSIONS.GARDEN_MANAGE_OWN,
+    PERMISSIONS.TASKS_COMPLETE,
+    PERMISSIONS.POINTS_READ_OWN,
+    PERMISSIONS.TOKENS_READ_OWN,
+    PERMISSIONS.AI_CHAT,
+    PERMISSIONS.TICKETS_CREATE,
+    PERMISSIONS.TICKETS_READ_OWN,
+  ],
+
+  [ROLES.PARENT]: [
+    PERMISSIONS.MOOD_READ_OWN,
+    PERMISSIONS.MOOD_READ_STUDENTS,
+    PERMISSIONS.CONTENT_READ,
+    PERMISSIONS.REPORTS_CHILD,
+    PERMISSIONS.TICKETS_CREATE,
+    PERMISSIONS.TICKETS_READ_OWN,
+    PERMISSIONS.CHILDREN_MANAGE,
+    PERMISSIONS.CHILDREN_REPORT,
+  ],
+};
+
+module.exports = { ROLES, PERMISSIONS, ROLE_PERMISSIONS };
