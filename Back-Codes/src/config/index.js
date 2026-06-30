@@ -39,7 +39,11 @@ const config = {
 
   security: {
     bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS, 10) || 12,
-    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    // پشتیبانی از چند origin با جداکننده کاما؛ * یعنی همه (فقط برای توسعه)
+    corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3001')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
     rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000,
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
     authRateLimitMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10) || 10,

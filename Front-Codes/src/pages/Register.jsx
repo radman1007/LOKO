@@ -9,6 +9,8 @@ const Register = () => {
   const navigate = useNavigate();
   const { login } = useUser();
   
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -28,8 +30,18 @@ const Register = () => {
     setError('');
 
     // اعتبارسنجی
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('لطفاً نام و نام خانوادگی را وارد کنید');
+      return;
+    }
+
     if (!username.trim() || username.length < 3) {
       setError('نام کاربری باید حداقل ۳ کاراکتر باشد');
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setError('نام کاربری فقط می‌تواند شامل حروف انگلیسی، عدد و _ باشد');
       return;
     }
 
@@ -46,34 +58,32 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      // ثبت‌نام
+      // ثبت‌نام والدین
       await authService.registerParent({
-        username: username,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        username: username.trim(),
         password: password,
       });
 
       // بعد از ثبت‌نام موفق، خودکار لاگین کن
-      const result = await login(username, password);
-      
+      const result = await login(username.trim(), password);
+
       if (result.success) {
-        const user = result.user;
-        
-        // بر اساس نقش هدایت کن
-        if (user.role === 'student' && !user.isProfileComplete) {
-          navigate('/complete-profile');
-        } else if (user.role === 'parent') {
-          navigate(`/student-profile/${user.child}`);
-        } else if (user.role === 'admin') {
-          navigate('/admin-panel');
-        } else {
-          navigate('/');
-        }
+        const user = result.data?.user || result.user;
+        const routes = {
+          team_admin: '/admin-panel',
+          school_admin: '/school-panel',
+          teacher: '/teacher-panel',
+          parent: '/parent-panel',
+          student: '/',
+        };
+        navigate(routes[user?.role] || '/parent-panel', { replace: true });
       } else {
-        setError(result.error);
+        setError(result.error || 'ثبت‌نام انجام شد اما ورود خودکار ناموفق بود');
       }
-      
     } catch (error) {
-      setError(error.response?.data?.message || 'خطا در ثبت‌نام');
+      setError(error.response?.data?.error?.message || 'خطا در ثبت‌نام');
     }
 
     setIsLoading(false);
@@ -134,6 +144,71 @@ const Register = () => {
         )}
 
         <form onSubmit={handleSubmit}>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <div style={{
+                position: 'relative', background: 'transparent', borderRadius: '16px',
+                border: `2px solid ${focusedField === 'firstName' || firstName ? colors.primary : '#E0E0E0'}`,
+                transition: 'all 0.2s ease'
+              }}>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  onFocus={() => setFocusedField('firstName')}
+                  onBlur={() => setFocusedField(null)}
+                  onKeyPress={handleKeyPress}
+                  disabled={isLoading}
+                  style={{
+                    width: '100%', padding: '18px 18px 8px 18px', border: 'none', borderRadius: '16px',
+                    fontSize: '15px', outline: 'none', background: 'transparent', boxSizing: 'border-box',
+                    textAlign: 'right', direction: 'rtl'
+                  }}
+                />
+                <label style={{
+                  position: 'absolute', right: '16px',
+                  top: (focusedField === 'firstName' || firstName) ? '-10px' : '50%',
+                  transform: (focusedField === 'firstName' || firstName) ? 'translateY(0)' : 'translateY(-50%)',
+                  fontSize: (focusedField === 'firstName' || firstName) ? '11px' : '15px',
+                  color: (focusedField === 'firstName' || firstName) ? colors.primary : '#9AA6B5',
+                  transition: 'all 0.2s ease', pointerEvents: 'none', background: colors.cardBg,
+                  padding: (focusedField === 'firstName' || firstName) ? '0 8px' : '0', zIndex: 1
+                }}>نام</label>
+              </div>
+            </div>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <div style={{
+                position: 'relative', background: 'transparent', borderRadius: '16px',
+                border: `2px solid ${focusedField === 'lastName' || lastName ? colors.primary : '#E0E0E0'}`,
+                transition: 'all 0.2s ease'
+              }}>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  onFocus={() => setFocusedField('lastName')}
+                  onBlur={() => setFocusedField(null)}
+                  onKeyPress={handleKeyPress}
+                  disabled={isLoading}
+                  style={{
+                    width: '100%', padding: '18px 18px 8px 18px', border: 'none', borderRadius: '16px',
+                    fontSize: '15px', outline: 'none', background: 'transparent', boxSizing: 'border-box',
+                    textAlign: 'right', direction: 'rtl'
+                  }}
+                />
+                <label style={{
+                  position: 'absolute', right: '16px',
+                  top: (focusedField === 'lastName' || lastName) ? '-10px' : '50%',
+                  transform: (focusedField === 'lastName' || lastName) ? 'translateY(0)' : 'translateY(-50%)',
+                  fontSize: (focusedField === 'lastName' || lastName) ? '11px' : '15px',
+                  color: (focusedField === 'lastName' || lastName) ? colors.primary : '#9AA6B5',
+                  transition: 'all 0.2s ease', pointerEvents: 'none', background: colors.cardBg,
+                  padding: (focusedField === 'lastName' || lastName) ? '0 8px' : '0', zIndex: 1
+                }}>نام خانوادگی</label>
+              </div>
+            </div>
+          </div>
+
           <div style={{ marginBottom: '24px', position: 'relative' }}>
             <div style={{
               position: 'relative',

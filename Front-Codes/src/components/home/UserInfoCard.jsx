@@ -3,7 +3,7 @@ import {
   HiOutlineBell,
 } from 'react-icons/hi';
 
-import Icon11 from '../../icons/icon55.png';
+import Icon11 from '../../icons/icon53.png';
 
 /* =========================
    MERGED SHAPE

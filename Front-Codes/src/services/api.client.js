@@ -1,8 +1,14 @@
 // src/services/api.client.js
 import axios from 'axios';
 
-// ✅ آدرس پایه - مطابق با مستندات
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api/';
+// ✅ آدرس پایه - شامل نسخه v1.
+// در توسعه به بک‌اند لوکال، در production از طریق nginx به /api/v1 پروکسی می‌شود.
+const API_URL =
+  process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1';
+
+const IS_DEV = process.env.NODE_ENV !== 'production';
+const log = (...args) => { if (IS_DEV) console.log(...args); };
+const warn = (...args) => { if (IS_DEV) console.warn(...args); };
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -13,106 +19,96 @@ const apiClient = axios.create({
 });
 
 // ============================================
-// ✅ Interceptor برای اضافه کردن توکن به درخواست‌ها
+// ✅ Interceptor درخواست — افزودن توکن
 // ============================================
 apiClient.interceptors.request.use(
   (config) => {
-    // 📝 لاگ برای دیباگ
-    console.log('🚀 ====== REQUEST ======');
-    console.log('📍 URL:', config.baseURL + config.url);
-    console.log('📝 Method:', config.method?.toUpperCase());
-    console.log('📦 Data:', config.data);
-    
-    // 🔑 گرفتن توکن از localStorage
     const token = localStorage.getItem('accessToken');
-    console.log('🔑 Token exists:', !!token);
-    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('✅ Token added to headers');
-    } else {
-      console.warn('⚠️ No token found in localStorage');
     }
-    
-    console.log('📋 Headers:', config.headers);
-    console.log('🚀 ====== END REQUEST ======');
-    
+    log('🚀', config.method?.toUpperCase(), (config.baseURL || '') + config.url);
     return config;
   },
   (error) => {
-    console.error('❌ Request interceptor error:', error);
+    warn('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
 // ============================================
-// ✅ Interceptor برای پاسخ‌ها و مدیریت خطاها
+// ✅ Interceptor پاسخ — مدیریت خطا و refresh خودکار
 // ============================================
+let isRefreshing = false;
+let refreshQueue = [];
+
+function flushQueue(error, token = null) {
+  refreshQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)));
+  refreshQueue = [];
+}
+
 apiClient.interceptors.response.use(
-  (response) => {
-    console.log('✅ ====== RESPONSE ======');
-    console.log('📍 URL:', response.config.url);
-    console.log('📊 Status:', response.status);
-    console.log('📦 Data:', response.data);
-    console.log('✅ ====== END RESPONSE ======');
-    return response;
-  },
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    
-    console.error('❌ ====== ERROR ======');
-    console.error('📍 URL:', originalRequest?.url);
-    console.error('📊 Status:', error.response?.status);
-    console.error('📦 Data:', error.response?.data);
-    console.error('❌ ====== END ERROR ======');
-    
-    // اگر خطای 401 (Unauthorized) بود و قبلاً تلاش نکرده بودیم
-    if (error.response?.status === 401 && !originalRequest._retry) {
+
+    log('❌', error.response?.status, originalRequest?.url, error.response?.data);
+
+    // مسیرهای auth نباید وارد چرخه refresh شوند
+    const isAuthPath =
+      originalRequest?.url?.includes('/auth/login') ||
+      originalRequest?.url?.includes('/auth/refresh') ||
+      originalRequest?.url?.includes('/auth/register');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthPath) {
+      if (isRefreshing) {
+        // منتظر بمان تا refresh جاری تمام شود
+        return new Promise((resolve, reject) => {
+          refreshQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        });
+      }
+
       originalRequest._retry = true;
-      
+      isRefreshing = true;
+
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        console.log('🔄 Trying to refresh token...');
-        
-        if (!refreshToken) {
-          console.warn('⚠️ No refresh token found');
-          throw new Error('No refresh token');
-        }
-        
-        // درخواست برای دریافت توکن جدید
-        const response = await axios.post(`${API_URL}v1/auth/refresh`, {
+        if (!refreshToken) throw new Error('No refresh token');
+
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
           refreshToken,
         });
-        
-        console.log('✅ Token refreshed successfully');
-        
-        const newAccessToken = response.data.data?.accessToken || response.data.accessToken;
-        
-        if (!newAccessToken) {
-          throw new Error('No access token in refresh response');
-        }
-        
-        // ذخیره توکن جدید
+
+        const newAccessToken =
+          response.data.data?.accessToken || response.data.accessToken;
+        const newRefreshToken =
+          response.data.data?.refreshToken || response.data.refreshToken;
+
+        if (!newAccessToken) throw new Error('No access token in refresh response');
+
         localStorage.setItem('accessToken', newAccessToken);
-        
-        // به‌روزرسانی هدر و تکرار درخواست
+        if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+
+        flushQueue(null, newAccessToken);
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return apiClient(originalRequest);
-        
       } catch (refreshError) {
-        console.error('❌ Refresh token failed:', refreshError);
-        
-        // پاک کردن اطلاعات کاربر
+        flushQueue(refreshError, null);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        
-        // هدایت به صفحه لاگین
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
-    
+
     return Promise.reject(error);
   }
 );

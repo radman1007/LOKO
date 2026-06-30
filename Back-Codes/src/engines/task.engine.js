@@ -1,6 +1,22 @@
 const { withTransaction, query, queryOne } = require('../database/connection');
 const badgeEngine = require('./badge.engine');
 
+// لیست تسک‌های فعال امروز + وضعیت انجام‌شدن برای کاربر
+async function getDailyTasks(userId) {
+  const today = new Date().toISOString().split('T')[0];
+  return query(
+    `SELECT t.id, t.slug, t.title_fa AS title, t.description, t.icon, t.category,
+            t.points_reward, t.token_reward,
+            CASE WHEN tc.id IS NULL THEN 0 ELSE 1 END AS completed
+     FROM daily_tasks t
+     LEFT JOIN task_completions tc
+       ON tc.task_id = t.id AND tc.user_id = :userId AND tc.completion_date = :today
+     WHERE t.is_active = 1 AND t.deleted_at IS NULL
+     ORDER BY t.id`,
+    { userId, today }
+  );
+}
+
 async function completeTask(userId, taskId) {
   return withTransaction(async (conn) => {
     const task = await queryOne(
@@ -81,4 +97,4 @@ async function awardTokens(conn, userId, amount, sourceType, sourceId) {
   return newBalance;
 }
 
-module.exports = { completeTask, awardPoints, awardTokens };
+module.exports = { getDailyTasks, completeTask, awardPoints, awardTokens };

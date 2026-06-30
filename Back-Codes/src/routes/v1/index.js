@@ -4,7 +4,7 @@ const {
   gardenController, aiController, schoolController, userController,
   ticketController, secretController, breathingController, reportController,
   importController, auditController, contentController, classController,
-  parentController,
+  parentController, clubController, bookController,
 } = require('../../controllers');
 const { authenticate } = require('../../middleware/auth');
 const { authorize, authorizeAny, authorizeRoles, tenantScope } = require('../../middleware/authorize');
@@ -13,7 +13,8 @@ const { excelUpload, mediaUpload } = require('../../middleware/upload');
 const { PERMISSIONS } = require('../../config/permissions');
 const {
   loginSchema, refreshSchema, moodCheckinSchema, aiChatSchema,
-  secretSchema, breathingSchema, ticketSchema, schoolSchema, userCreateSchema,
+  secretSchema, secretUpdateSchema, breathingSchema, ticketSchema, schoolSchema,
+  userCreateSchema, userUpdateSchema, classCreateSchema, bookSchema,
   parentRegisterSchema, addChildSchema,
 } = require('../../validators/schemas');
 const { authLimiter } = require('../../middleware/rateLimiter');
@@ -46,29 +47,50 @@ router.delete('/schools/:id', authenticate, authorize(PERMISSIONS.SCHOOLS_DELETE
 router.get('/schools/:schoolId/users', authenticate, authorize(PERMISSIONS.USERS_READ), tenantScope, userController.list);
 router.post('/schools/:schoolId/users', authenticate, authorize(PERMISSIONS.USERS_WRITE), validate(userCreateSchema), userController.create);
 router.get('/users/:id', authenticate, authorize(PERMISSIONS.USERS_READ), userController.get);
+router.put('/users/:id', authenticate, authorize(PERMISSIONS.USERS_WRITE), validate(userUpdateSchema), userController.update);
 router.get('/users/:id/password', authenticate, authorize(PERMISSIONS.USERS_VIEW_PASSWORD), userController.getPassword);
 router.post('/users/:id/reset-password', authenticate, authorize(PERMISSIONS.USERS_RESET_PASSWORD), userController.resetPassword);
 router.delete('/users/:id', authenticate, authorize(PERMISSIONS.USERS_DELETE), userController.softDelete);
 
 // ─── Classes ────────────────────────────────────────────────
+// مسیرهای ثابت قبل از :id
+router.get('/classes/my', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.myClasses);
 router.get('/schools/:schoolId/classes', authenticate, authorize(PERMISSIONS.CLASSES_READ), classController.list);
-router.post('/schools/:schoolId/classes', authenticate, authorize(PERMISSIONS.CLASSES_WRITE), classController.create);
+router.post('/schools/:schoolId/classes', authenticate, authorize(PERMISSIONS.CLASSES_WRITE), validate(classCreateSchema), classController.create);
 router.get('/classes/:id', authenticate, authorize(PERMISSIONS.CLASSES_READ), classController.get);
 
-// ✅ مسیرهای جدید برای مدیریت دانش‌آموز و معلم در کلاس
+// مدیریت دانش‌آموز و معلم در کلاس
 router.post('/classes/:id/students', authenticate, authorize(PERMISSIONS.CLASSES_WRITE), classController.addStudent);
+router.delete('/classes/:id/students/:studentId', authenticate, authorize(PERMISSIONS.CLASSES_WRITE), classController.removeStudent);
 router.post('/classes/:id/teachers', authenticate, authorize(PERMISSIONS.CLASSES_WRITE), classController.addTeacher);
+router.delete('/classes/:id/teachers/:teacherId', authenticate, authorize(PERMISSIONS.CLASSES_WRITE), classController.removeTeacher);
+
+// ─── Books & Games ──────────────────────────────────────────
+router.get('/books/my', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.myBooks);
+router.get('/books', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), bookController.list);
+router.post('/books', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), validate(bookSchema), bookController.create);
+router.get('/books/:id', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.get);
+router.put('/books/:id', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), validate(bookSchema), bookController.update);
+router.delete('/books/:id', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), bookController.remove);
+router.get('/books/:id/game', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.game);
+router.post('/books/:id/game/complete', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.completeGame);
 
 // ─── Content: Videos (Loko TV) ──────────────────────────────
+router.get('/videos/latest-by-category', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.latestVideosByCategory);
 router.get('/videos', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.listVideos);
 router.get('/videos/:id', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.getVideo);
 router.post('/videos', authenticate, authorize(PERMISSIONS.CONTENT_WRITE), mediaUpload.single('file'), contentController.uploadVideo);
+router.put('/videos/:id', authenticate, authorize(PERMISSIONS.CONTENT_WRITE), contentController.updateVideo);
+router.delete('/videos/:id', authenticate, authorize(PERMISSIONS.CONTENT_DELETE), contentController.deleteVideo);
 router.get('/content/categories/:type', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.listCategories);
 router.post('/content/interactions', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.recordInteraction);
 
 // ─── Content: Podcasts (Loko Podcast) ───────────────────────
+router.get('/podcasts/daily', authenticate, authorize(PERMISSIONS.CONTENT_READ), podcastController.daily);
 router.get('/podcasts', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.listPodcasts);
 router.post('/podcasts', authenticate, authorize(PERMISSIONS.CONTENT_WRITE), mediaUpload.single('file'), contentController.uploadPodcast);
+router.put('/podcasts/:id', authenticate, authorize(PERMISSIONS.CONTENT_WRITE), contentController.updatePodcast);
+router.delete('/podcasts/:id', authenticate, authorize(PERMISSIONS.CONTENT_DELETE), contentController.deletePodcast);
 
 // ─── Excel Import ───────────────────────────────────────────
 router.post('/import/excel', authenticate, authorize(PERMISSIONS.IMPORT_EXCEL), excelUpload.single('excel'), importController.uploadExcel);
@@ -79,23 +101,32 @@ router.post('/mood/checkin', authenticate, authorize(PERMISSIONS.MOOD_WRITE), va
 router.get('/mood/history', authenticate, authorize(PERMISSIONS.MOOD_READ_OWN), moodController.history);
 
 // ─── Breathing ──────────────────────────────────────────────
+router.get('/breathing/status', authenticate, authorize(PERMISSIONS.BREATHING_WRITE), breathingController.status);
 router.post('/breathing/sessions', authenticate, authorize(PERMISSIONS.BREATHING_WRITE), validate(breathingSchema), breathingController.record);
 router.get('/breathing/sessions', authenticate, authorize(PERMISSIONS.BREATHING_WRITE), breathingController.history);
 
 // ─── Secrets ────────────────────────────────────────────────
 router.get('/secrets', authenticate, authorize(PERMISSIONS.SECRETS_MANAGE_OWN), secretController.list);
 router.post('/secrets', authenticate, authorize(PERMISSIONS.SECRETS_MANAGE_OWN), validate(secretSchema), secretController.create);
-router.put('/secrets/:id', authenticate, authorize(PERMISSIONS.SECRETS_MANAGE_OWN), validate(secretSchema), secretController.update);
+router.post('/secrets/:id/unlock', authenticate, authorize(PERMISSIONS.SECRETS_MANAGE_OWN), secretController.unlock);
+router.put('/secrets/:id', authenticate, authorize(PERMISSIONS.SECRETS_MANAGE_OWN), validate(secretUpdateSchema), secretController.update);
 router.delete('/secrets/:id', authenticate, authorize(PERMISSIONS.SECRETS_MANAGE_OWN), secretController.remove);
 
-// ─── Daily Podcast ──────────────────────────────────────────
-router.get('/podcasts/daily', authenticate, authorize(PERMISSIONS.CONTENT_READ), podcastController.daily);
-
 // ─── Tasks (Loko Club) ──────────────────────────────────────
+router.get('/tasks/daily', authenticate, authorize(PERMISSIONS.TASKS_COMPLETE), taskController.listDaily);
 router.post('/tasks/:taskId/complete', authenticate, authorize(PERMISSIONS.TASKS_COMPLETE), taskController.complete);
+
+// ─── Loko Club (coins, rewards, badges, streak) ─────────────
+router.get('/club/summary', authenticate, authorize(PERMISSIONS.CLUB_ACCESS), clubController.summary);
+router.get('/club/coins', authenticate, authorize(PERMISSIONS.CLUB_ACCESS), clubController.coins);
+router.get('/club/rewards', authenticate, authorize(PERMISSIONS.CLUB_ACCESS), clubController.rewards);
+router.post('/club/rewards/:rewardId/redeem', authenticate, authorize(PERMISSIONS.CLUB_ACCESS), clubController.redeem);
+router.get('/club/badges', authenticate, authorize(PERMISSIONS.CLUB_ACCESS), clubController.badges);
+router.get('/club/streak', authenticate, authorize(PERMISSIONS.CLUB_ACCESS), clubController.streak);
 
 // ─── Garden ─────────────────────────────────────────────────
 router.get('/garden', authenticate, authorize(PERMISSIONS.GARDEN_MANAGE_OWN), gardenController.getState);
+router.get('/garden/wellbeing', authenticate, authorize(PERMISSIONS.GARDEN_MANAGE_OWN), gardenController.wellbeing);
 
 // ─── AI ─────────────────────────────────────────────────────
 router.post('/ai/analyze', authenticate, authorize(PERMISSIONS.AI_CHAT), aiController.analyze);

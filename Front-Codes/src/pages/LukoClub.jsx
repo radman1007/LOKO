@@ -39,18 +39,93 @@ import VideoShabihsaz from '../video/shabihsaz.mp4';
 import VideoVadeakhar from '../video/vadeakhar.mp4';
 
 // ایمپورت دیتا ماموریت‌ها
-import { 
-  getTodayMissions, 
-  shouldResetMissions, 
-  saveCompletedMissions, 
+import {
+  getTodayMissions,
+  shouldResetMissions,
+  saveCompletedMissions,
   getCompletedMissions,
   registerVideoWatch,
   hasWatchedVideoToday
 } from '../data/dailyMissionsData';
 
+// سرویس‌های باشگاه (سکه، جوایز، مدال، استریک)
+import { clubService } from '../services/task.service';
+
 const LukoClub = () => {
   const navigate = useNavigate();
-  const { user, userXP, completeTask, completeMission, purchaseItem } = useUser();
+  const { user } = useUser();
+
+  // ─── اقتصاد باشگاه از بک‌اند ───
+  const [coins, setCoins] = useState(0);
+  const [backendRewards, setBackendRewards] = useState(null);
+  const [backendBadges, setBackendBadges] = useState(null);
+  const [backendStreak, setBackendStreak] = useState(null);
+
+  const refreshClub = useCallback(async () => {
+    try {
+      const [summaryRes, rewardsRes, badgesRes, streakRes] = await Promise.allSettled([
+        clubService.getSummary(),
+        clubService.getRewards(),
+        clubService.getBadges(),
+        clubService.getStreak(),
+      ]);
+      if (summaryRes.status === 'fulfilled' && summaryRes.value?.success) {
+        setCoins(summaryRes.value.data?.coins ?? 0);
+      }
+      if (rewardsRes.status === 'fulfilled' && rewardsRes.value?.success) {
+        setBackendRewards(rewardsRes.value.data || []);
+      }
+      if (badgesRes.status === 'fulfilled' && badgesRes.value?.success) {
+        setBackendBadges(badgesRes.value.data || []);
+      }
+      if (streakRes.status === 'fulfilled' && streakRes.value?.success) {
+        setBackendStreak(streakRes.value.data || null);
+      }
+    } catch (e) {
+      // در صورت خطا، مقادیر محلی نمایش داده می‌شوند
+    }
+  }, []);
+
+  useEffect(() => { refreshClub(); }, [refreshClub]);
+
+  // نگاشت استریک بک‌اند به نوار هفتگی
+  const [streakWeekDays, setStreakWeekDays] = useState(null);
+  useEffect(() => {
+    if (!backendStreak?.week) { setStreakWeekDays(null); return; }
+    const persianDays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+    const todayStr = new Date().toISOString().split('T')[0];
+    setStreakWeekDays(
+      backendStreak.week.map((d, i) => {
+        const dayName = persianDays[new Date(d.date).getDay()];
+        const isToday = d.date === todayStr;
+        return {
+          id: i + 1,
+          name: dayName,
+          status: isToday ? 'today' : (d.done ? 'passed' : 'future'),
+          isToday,
+          isPassed: d.done,
+        };
+      })
+    );
+  }, [backendStreak]);
+
+  // سکه به‌عنوان واحد امتیاز فروشگاه
+  const userXP = coins;
+  // ماموریت‌های محلی (UI موجود) بدون کرش
+  const completeTask = useCallback(() => {}, []);
+  const completeMission = useCallback(() => {}, []);
+  const purchaseItem = useCallback(async (rewardId) => {
+    try {
+      const res = await clubService.redeemReward(rewardId);
+      if (res?.success) {
+        setCoins(res.data?.coinBalance ?? coins);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }, [coins]);
   
   const [activeNav, setActiveNav] = useState('لوکو کلاب');
   const [pressedItem, setPressedItem] = useState(null);
@@ -223,15 +298,27 @@ const LukoClub = () => {
   const totalTasksCount = todayMissionsList.length;
   const progressPercent = totalTasksCount > 0 ? (tasksCompletedCount / totalTasksCount) * 100 : 0;
 
-  const rewards = [
+  const REWARD_ICONS = [Icon3, Icon14, Icon19, Icon20];
+  const fallbackRewards = [
     { id: 1, title: 'استیکر سکه', icon: Icon3, price: 50, description: 'استیکر مخصوص پروفایل' },
     { id: 2, title: 'پروفایل ویژه', icon: Icon14, price: 75, description: 'قاب پروفایل اختصاصی' },
     { id: 3, title: 'پس زمینه ویژه', icon: Icon19, price: 100, description: 'تم اختصاصی برنامه' },
     { id: 4, title: 'استیکر ویژه', icon: Icon20, price: 120, description: 'استیکر لوکو' }
   ];
+  // جوایز از بک‌اند (در صورت موجود بودن) با آیکون محلی
+  const rewards = backendRewards
+    ? backendRewards.map((r, i) => ({
+        id: r.id,
+        title: r.title,
+        icon: REWARD_ICONS[i % REWARD_ICONS.length],
+        price: r.cost_coins,
+        description: r.description || '',
+      }))
+    : fallbackRewards;
 
-  // مدال‌ها - دستاوردهای دائمی
-  const medals = [
+  // مدال‌ها — از نشان‌های بک‌اند یا حالت محلی
+  const MEDAL_ICONS = [Icon15, Icon16, Icon17, Icon18, Icon11, Icon12, Icon13, Icon14];
+  const fallbackMedals = [
     { id: 1, name: 'مدال ریاضی', icon: Icon15, xpRequired: 200 },
     { id: 2, name: 'مدال علوم', icon: Icon16, xpRequired: 300 },
     { id: 3, name: 'مدال هنر', icon: Icon17, xpRequired: 400 },
@@ -240,10 +327,17 @@ const LukoClub = () => {
     { id: 6, name: 'مدال موسیقی', icon: Icon12, xpRequired: 700 },
     { id: 7, name: 'مدال برنامه‌نویسی', icon: Icon13, xpRequired: 800 },
     { id: 8, name: 'مدال رهبری', icon: Icon14, xpRequired: 900 }
-  ].map(medal => ({
-    ...medal,
-    earned: userXP >= medal.xpRequired
-  }));
+  ].map(medal => ({ ...medal, earned: userXP >= medal.xpRequired }));
+
+  const medals = backendBadges && backendBadges.length > 0
+    ? backendBadges.map((b, i) => ({
+        id: b.id,
+        name: b.name_fa,
+        icon: MEDAL_ICONS[i % MEDAL_ICONS.length],
+        xpRequired: b.criteria_value,
+        earned: !!b.earned,
+      }))
+    : fallbackMedals;
 
   const purchasedItems = JSON.parse(localStorage.getItem('lukoClubPurchased') || '[]');
 
@@ -305,16 +399,20 @@ const LukoClub = () => {
     }
   };
 
-  const handlePurchaseReward = (rewardId, price) => {
-    if (userXP >= price) {
-      const success = purchaseItem(rewardId, price);
-      if (success) {
-        alert('جایزه خریداری شد');
-      } else {
-        alert('خطا در خرید');
+  const handlePurchaseReward = async (rewardId, price) => {
+    if (userXP < price) {
+      alert(`سکه کافی نیست؛ به ${price} سکه نیاز داری`);
+      return;
+    }
+    const success = await purchaseItem(rewardId, price);
+    if (success) {
+      const purchased = JSON.parse(localStorage.getItem('lukoClubPurchased') || '[]');
+      if (!purchased.includes(rewardId)) {
+        localStorage.setItem('lukoClubPurchased', JSON.stringify([...purchased, rewardId]));
       }
+      alert('جایزه با موفقیت دریافت شد');
     } else {
-      alert(`امتیاز کافی نیست نیاز به ${price} XP دارید`);
+      alert('خطا در دریافت جایزه');
     }
   };
 
@@ -406,7 +504,7 @@ const LukoClub = () => {
           setPressedItem={setPressedItem}
         />
 
-        <WeekStreak weekDays={weekDays} colors={colors} isMobile={isMobile} />
+        <WeekStreak weekDays={streakWeekDays || weekDays} colors={colors} isMobile={isMobile} />
 
         <MedalsSection medals={medals} colors={colors} isMobile={isMobile} />
 

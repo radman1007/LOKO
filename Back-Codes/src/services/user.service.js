@@ -66,17 +66,29 @@ async function create(data, schoolId, createdBy) {
   }
 
   return withTransaction(async (conn) => {
-    let sequence = 1;
     let username;
-    let exists = true;
-    while (exists) {
-      username = generateUsername(data.firstName, data.lastName, school.code, sequence);
+
+    if (data.username && data.username.trim()) {
+      // نام کاربری دستی و معنی‌دار
+      username = data.username.trim().toLowerCase();
+      if (!/^[a-z0-9_.]+$/.test(username)) {
+        throw new ForbiddenError('نام کاربری فقط می‌تواند شامل حروف انگلیسی، عدد، نقطه و _ باشد');
+      }
       const [rows] = await conn.execute('SELECT id FROM users WHERE username = ?', [username]);
-      exists = rows.length > 0;
-      sequence++;
+      if (rows.length > 0) throw new ForbiddenError('این نام کاربری قبلاً استفاده شده است');
+    } else {
+      // تولید خودکار بر اساس نام + کد مدرسه
+      let sequence = 1;
+      let exists = true;
+      while (exists) {
+        username = generateUsername(data.firstName, data.lastName, school.code, sequence);
+        const [rows] = await conn.execute('SELECT id FROM users WHERE username = ?', [username]);
+        exists = rows.length > 0;
+        sequence++;
+      }
     }
 
-    const password = generateSecurePassword(10);
+    const password = data.password && data.password.trim() ? data.password.trim() : generateSecurePassword(10);
     const passwordHash = await hashPassword(password);
 
     // ✅ تصحیح: استفاده از ? به جای named parameters
@@ -110,6 +122,45 @@ async function create(data, schoolId, createdBy) {
   });
 }
 
+// ویرایش کاربر (نام، نام‌کاربری دستی، تماس)
+async function update(id, data, schoolId, actorId) {
+  const user = await getById(id, schoolId);
+
+  if (data.username && data.username.trim().toLowerCase() !== user.username) {
+    const newUsername = data.username.trim().toLowerCase();
+    if (!/^[a-z0-9_.]+$/.test(newUsername)) {
+      throw new ForbiddenError('نام کاربری نامعتبر است');
+    }
+    const existing = await queryOne('SELECT id FROM users WHERE username = ? AND id <> ?', [newUsername, id]);
+    if (existing) throw new ForbiddenError('این نام کاربری قبلاً استفاده شده است');
+    await query('UPDATE users SET username = ? WHERE id = ?', [newUsername, id]);
+  }
+
+  await query(
+    `UPDATE users SET first_name = ?, last_name = ?, national_code = ?, phone = ?, email = ?,
+       is_active = ?, updated_at = NOW() WHERE id = ?`,
+    [
+      data.firstName != null ? data.firstName : user.first_name,
+      data.lastName != null ? data.lastName : user.last_name,
+      data.nationalCode != null ? data.nationalCode : user.national_code,
+      data.phone != null ? data.phone : user.phone,
+      data.email != null ? data.email : user.email,
+      data.isActive != null ? (data.isActive ? 1 : 0) : user.is_active,
+      id,
+    ]
+  );
+
+  await auditService.log({
+    userId: actorId,
+    schoolId,
+    action: 'user.update',
+    entityType: 'user',
+    entityId: id,
+  });
+
+  return getById(id, schoolId);
+}
+
 async function softDeleteStudent(studentId, schoolId, actorId) {
   const student = await getById(studentId, schoolId);
   if (student.role_slug !== ROLES.STUDENT) {
@@ -131,4 +182,4 @@ async function softDeleteStudent(studentId, schoolId, actorId) {
   });
 }
 
-module.exports = { list, getById, getPassword, create, softDeleteStudent, ROLE_IDS };
+module.exports = { list, getById, getPassword, create, update, softDeleteStudent, ROLE_IDS };

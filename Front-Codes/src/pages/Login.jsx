@@ -26,12 +26,11 @@ const Login = () => {
   useEffect(() => {
     if (!loading && user) {
       const routes = {
-        admin: '/admin-panel',
         team_admin: '/admin-panel',
-        school_manager: '/school-panel',
+        school_admin: '/school-panel',
         teacher: '/teacher-panel',
-        parent: `/student-profile/${user.child}`,
-        student: user.isProfileComplete ? '/' : '/complete-profile'
+        parent: '/parent-panel',
+        student: '/'
       };
 
       navigate(routes[user.role] || '/', { replace: true });

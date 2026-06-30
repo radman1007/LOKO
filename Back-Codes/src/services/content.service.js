@@ -89,9 +89,10 @@ async function createVideo(data, uploadedBy) {
   // ابتدا بررسی می‌کنیم جدول چه ستون‌هایی داره
   // فعلاً فقط با ستون‌های اصلی
   const result = await query(
-    `INSERT INTO videos (title, description, category_id, duration_seconds, uploaded_by, created_at)
-     VALUES (?, ?, ?, ?, ?, NOW())`,
-    [data.title, data.description || '', data.categoryId || null, data.durationSeconds || 0, uploadedBy]
+    `INSERT INTO videos (title, description, category_id, file_url, thumbnail_url, duration_seconds, uploaded_by, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [data.title, data.description || '', data.categoryId || null, data.fileUrl || null,
+      data.thumbnailUrl || null, data.durationSeconds || 0, uploadedBy]
   );
 
   await auditService.log({
@@ -107,9 +108,10 @@ async function createVideo(data, uploadedBy) {
 // ========== ایجاد پادکست ==========
 async function createPodcast(data, uploadedBy) {
   const result = await query(
-    `INSERT INTO podcasts (title, description, category_id, mood_slug, duration_seconds, uploaded_by, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-    [data.title, data.description || '', data.categoryId || null, data.moodSlug || null, data.durationSeconds || 0, uploadedBy]
+    `INSERT INTO podcasts (title, description, category_id, mood_slug, file_url, cover_url, duration_seconds, uploaded_by, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [data.title, data.description || '', data.categoryId || null, data.moodSlug || null,
+      data.fileUrl || null, data.coverUrl || null, data.durationSeconds || 0, uploadedBy]
   );
 
   await auditService.log({
@@ -161,6 +163,55 @@ async function deletePodcast(id) {
   return { success: true };
 }
 
+async function updateVideo(id, data) {
+  await getVideo(id);
+  await query(
+    `UPDATE videos SET title = ?, description = ?, category_id = ?, updated_at = NOW() WHERE id = ?`,
+    [data.title, data.description || '', data.categoryId || null, id]
+  );
+  return getVideo(id);
+}
+
+async function updatePodcast(id, data) {
+  await getPodcast(id);
+  await query(
+    `UPDATE podcasts SET title = ?, description = ?, category_id = ?, mood_slug = ?, updated_at = NOW() WHERE id = ?`,
+    [data.title, data.description || '', data.categoryId || null, data.moodSlug || null, id]
+  );
+  return getPodcast(id);
+}
+
+// صفحه اصلی Loko TV: حداقل یک ویدیو از هر دسته‌بندی
+async function getLatestVideosByCategory(perCategory = 6) {
+  const categories = await query(
+    `SELECT id, slug, name_fa, name_en FROM content_categories
+     WHERE content_type = 'video' AND is_active = 1 ORDER BY sort_order, id`
+  );
+
+  const groups = [];
+  for (const cat of categories) {
+    const videos = await query(
+      `SELECT id, title, description, thumbnail_url, file_url, duration_seconds, view_count, category_id
+       FROM videos WHERE category_id = ? AND is_active = 1 AND deleted_at IS NULL
+       ORDER BY created_at DESC LIMIT ?`,
+      [cat.id, perCategory]
+    );
+    if (videos.length > 0) groups.push({ category: cat, videos });
+  }
+
+  const uncategorized = await query(
+    `SELECT id, title, description, thumbnail_url, file_url, duration_seconds, view_count, category_id
+     FROM videos WHERE category_id IS NULL AND is_active = 1 AND deleted_at IS NULL
+     ORDER BY created_at DESC LIMIT ?`,
+    [perCategory]
+  );
+  if (uncategorized.length > 0) {
+    groups.push({ category: { id: null, slug: 'general', name_fa: 'عمومی' }, videos: uncategorized });
+  }
+
+  return groups;
+}
+
 module.exports = {
   listVideos,
   listPodcasts,
@@ -168,8 +219,11 @@ module.exports = {
   getPodcast,
   createVideo,
   createPodcast,
+  updateVideo,
+  updatePodcast,
   recordInteraction,
   listCategories,
   deleteVideo,
   deletePodcast,
+  getLatestVideosByCategory,
 };

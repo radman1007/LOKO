@@ -6,6 +6,19 @@ const logger = require('./utils/logger');
 
 async function start() {
   try {
+    // اجرای خودکار مهاجرت‌ها و داده‌های اولیه در استقرار (AUTO_MIGRATE=true)
+    if (process.env.AUTO_MIGRATE === 'true') {
+      const { runMigrations } = require('./database/migrate');
+      const { seed } = require('./database/seed');
+      logger.info('AUTO_MIGRATE فعال است؛ اجرای مهاجرت‌ها...');
+      await runMigrations();
+      try {
+        await seed();
+      } catch (seedErr) {
+        logger.warn('Seed با خطا مواجه شد (احتمالاً قبلاً اعمال شده)', { error: seedErr.message });
+      }
+    }
+
     await createPool();
     await connectRedis();
 

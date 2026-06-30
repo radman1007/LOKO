@@ -15,9 +15,11 @@ const LukoHealth = lazy(() => import('./pages/LukoHealth'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Books = lazy(() => import('./pages/Books'));
 const LukoPodcast = lazy(() => import('./pages/LukoPodcast'));
+const BookGame = lazy(() => import('./pages/BookGame'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const SchoolPanel = lazy(() => import('./pages/SchoolPanel'));
 const TeacherPanel = lazy(() => import('./pages/TeacherPanel'));
+const ParentPanel = lazy(() => import('./pages/ParentPanel'));
 const StudentProfile = lazy(() => import('./pages/StudentProfile'));
 
 const PageLoader = () => (
@@ -45,11 +47,10 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     const routes = {
-      'admin': '/admin-panel',
       'team_admin': '/admin-panel',
-      'school_manager': '/school-panel',
+      'school_admin': '/school-panel',
       'teacher': '/teacher-panel',
-      'parent': `/student-profile/${user.child}`,
+      'parent': '/parent-panel',
       'student': '/'
     };
     return <Redirector to={routes[user.role] || '/'} />;
@@ -73,16 +74,18 @@ function AppContent() {
           
           <Route path="/" element={<ProtectedRoute allowedRoles={['student']}><Home /></ProtectedRoute>} />
           <Route path="/books" element={<ProtectedRoute allowedRoles={['student']}><Books /></ProtectedRoute>} />
+          <Route path="/book/:id" element={<ProtectedRoute allowedRoles={['student']}><BookGame /></ProtectedRoute>} />
           <Route path="/luko-club" element={<ProtectedRoute allowedRoles={['student']}><LukoClub /></ProtectedRoute>} />
           <Route path="/entertainment" element={<ProtectedRoute allowedRoles={['student']}><LukoTV /></ProtectedRoute>} />
           <Route path="/luko-health" element={<ProtectedRoute allowedRoles={['student']}><LukoHealth /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute allowedRoles={['student']}><Profile /></ProtectedRoute>} />
           <Route path="/luko-podcast" element={<ProtectedRoute allowedRoles={['student']}><LukoPodcast /></ProtectedRoute>} />
           
+          <Route path="/parent-panel" element={<ProtectedRoute allowedRoles={['parent']}><ParentPanel /></ProtectedRoute>} />
           <Route path="/student-profile/:studentName" element={<ProtectedRoute allowedRoles={['parent']}><StudentProfile /></ProtectedRoute>} />
-          
-          <Route path="/admin-panel" element={<ProtectedRoute allowedRoles={['admin', 'team_admin']}><AdminPanel /></ProtectedRoute>} />
-          <Route path="/school-panel" element={<ProtectedRoute allowedRoles={['school_manager']}><SchoolPanel /></ProtectedRoute>} />
+
+          <Route path="/admin-panel" element={<ProtectedRoute allowedRoles={['team_admin']}><AdminPanel /></ProtectedRoute>} />
+          <Route path="/school-panel" element={<ProtectedRoute allowedRoles={['school_admin']}><SchoolPanel /></ProtectedRoute>} />
           <Route path="/teacher-panel" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherPanel /></ProtectedRoute>} />
           
           <Route path="*" element={<Redirector to="/" />} />

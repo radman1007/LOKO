@@ -13,6 +13,8 @@ const reportService = require('../services/report.service');
 const excelImportService = require('../services/excelImport.service');
 const contentService = require('../services/content.service');
 const classService = require('../services/class.service');
+const bookService = require('../services/book.service');
+const clubService = require('../services/club.service');
 const { query } = require('../database/connection');
 const { success, created } = require('../utils/response');
 const { NotFoundError } = require('../utils/errors');
@@ -96,6 +98,14 @@ const podcastController = {
 };
 
 const taskController = {
+  async listDaily(req, res, next) {
+    try {
+      const tasks = await taskEngine.getDailyTasks(req.user.id);
+      return success(res, tasks);
+    } catch (err) {
+      next(err);
+    }
+  },
   async complete(req, res, next) {
     try {
       const result = await taskEngine.completeTask(req.user.id, req.params.taskId);
@@ -115,6 +125,70 @@ const gardenController = {
     } catch (err) {
       next(err);
     }
+  },
+  async wellbeing(req, res, next) {
+    try {
+      const result = await gardenEngine.getWellbeing(req.user.id);
+      return success(res, result);
+    } catch (err) {
+      next(err);
+    }
+  },
+};
+
+const BREATHING_INTERVAL_HOURS = 4;
+const clubController = {
+  async summary(req, res, next) {
+    try { return success(res, await clubService.getSummary(req.user.id)); } catch (err) { next(err); }
+  },
+  async coins(req, res, next) {
+    try { return success(res, await clubService.getCoins(req.user.id)); } catch (err) { next(err); }
+  },
+  async rewards(req, res, next) {
+    try { return success(res, await clubService.listRewards(req.user.id)); } catch (err) { next(err); }
+  },
+  async redeem(req, res, next) {
+    try { return success(res, await clubService.redeemReward(req.user.id, req.params.rewardId)); } catch (err) { next(err); }
+  },
+  async badges(req, res, next) {
+    try { return success(res, await clubService.getBadges(req.user.id)); } catch (err) { next(err); }
+  },
+  async streak(req, res, next) {
+    try { return success(res, await clubService.getStreak(req.user.id)); } catch (err) { next(err); }
+  },
+};
+
+const bookController = {
+  async myBooks(req, res, next) {
+    try { return success(res, await bookService.getMyBooks(req.user.id)); } catch (err) { next(err); }
+  },
+  async myClasses(req, res, next) {
+    try { return success(res, await bookService.getMyClasses(req.user.id)); } catch (err) { next(err); }
+  },
+  async get(req, res, next) {
+    try { return success(res, await bookService.getBook(req.params.id)); } catch (err) { next(err); }
+  },
+  async game(req, res, next) {
+    try { return success(res, await bookService.getBookGame(req.params.id)); } catch (err) { next(err); }
+  },
+  async completeGame(req, res, next) {
+    try {
+      const result = await bookService.completeGame(req.user.id, req.params.id, { score: req.body.score });
+      return success(res, result);
+    } catch (err) { next(err); }
+  },
+  // مدیریت (ادمین)
+  async list(req, res, next) {
+    try { return success(res, await bookService.listAll({ classId: req.query.classId })); } catch (err) { next(err); }
+  },
+  async create(req, res, next) {
+    try { return created(res, await bookService.create(req.body)); } catch (err) { next(err); }
+  },
+  async update(req, res, next) {
+    try { return success(res, await bookService.update(req.params.id, req.body)); } catch (err) { next(err); }
+  },
+  async remove(req, res, next) {
+    try { return success(res, await bookService.remove(req.params.id)); } catch (err) { next(err); }
   },
 };
 
@@ -188,6 +262,12 @@ const userController = {
       return created(res, await userService.create(req.body, schoolId, req.user.id));
     } catch (err) { next(err); }
   },
+  async update(req, res, next) {
+    try {
+      const schoolId = req.user.role === 'team_admin' ? null : req.user.schoolId;
+      return success(res, await userService.update(req.params.id, req.body, schoolId, req.user.id));
+    } catch (err) { next(err); }
+  },
   async getPassword(req, res, next) {
     try {
       const schoolId = req.user.role === 'team_admin' ? null : req.user.schoolId;
@@ -235,11 +315,14 @@ const secretController = {
   async create(req, res, next) {
     try { return created(res, await secretService.create(req.user.id, req.body)); } catch (err) { next(err); }
   },
+  async unlock(req, res, next) {
+    try { return success(res, await secretService.unlock(req.user.id, req.params.id, req.body.secretPassword)); } catch (err) { next(err); }
+  },
   async update(req, res, next) {
     try { return success(res, await secretService.update(req.user.id, req.params.id, req.body)); } catch (err) { next(err); }
   },
   async remove(req, res, next) {
-    try { return success(res, await secretService.remove(req.user.id, req.params.id)); } catch (err) { next(err); }
+    try { return success(res, await secretService.remove(req.user.id, req.params.id, req.body.secretPassword)); } catch (err) { next(err); }
   },
 };
 
@@ -265,6 +348,27 @@ const breathingController = {
         { userId: req.user.id }
       );
       return success(res, sessions);
+    } catch (err) { next(err); }
+  },
+  // وضعیت در دسترس بودن تمرین (هر ۴ ساعت یکبار)
+  async status(req, res, next) {
+    try {
+      const last = await query(
+        'SELECT created_at FROM breathing_sessions WHERE user_id = :userId ORDER BY created_at DESC LIMIT 1',
+        { userId: req.user.id }
+      );
+      if (last.length === 0) {
+        return success(res, { available: true, nextAvailableAt: null, lastSessionAt: null });
+      }
+      const lastAt = new Date(last[0].created_at).getTime();
+      const nextAt = lastAt + BREATHING_INTERVAL_HOURS * 60 * 60 * 1000;
+      const available = Date.now() >= nextAt;
+      return success(res, {
+        available,
+        lastSessionAt: last[0].created_at,
+        nextAvailableAt: new Date(nextAt).toISOString(),
+        intervalHours: BREATHING_INTERVAL_HOURS,
+      });
     } catch (err) { next(err); }
   },
 };
@@ -334,14 +438,33 @@ const contentController = {
   async getVideo(req, res, next) {
     try { return success(res, await contentService.getVideo(req.params.id)); } catch (err) { next(err); }
   },
+  async latestVideosByCategory(req, res, next) {
+    try {
+      const perCategory = parseInt(req.query.perCategory, 10) || 6;
+      return success(res, await contentService.getLatestVideosByCategory(perCategory));
+    } catch (err) { next(err); }
+  },
+  async updateVideo(req, res, next) {
+    try { return success(res, await contentService.updateVideo(req.params.id, req.body)); } catch (err) { next(err); }
+  },
+  async deleteVideo(req, res, next) {
+    try { return success(res, await contentService.deleteVideo(req.params.id)); } catch (err) { next(err); }
+  },
+  async updatePodcast(req, res, next) {
+    try { return success(res, await contentService.updatePodcast(req.params.id, req.body)); } catch (err) { next(err); }
+  },
+  async deletePodcast(req, res, next) {
+    try { return success(res, await contentService.deletePodcast(req.params.id)); } catch (err) { next(err); }
+  },
   async uploadVideo(req, res, next) {
     try {
-      const fileUrl = `/uploads/videos/${req.file.filename}`;
+      const fileUrl = req.file ? `/uploads/videos/${req.file.filename}` : (req.body.fileUrl || null);
       const video = await contentService.createVideo({
         title: req.body.title,
         description: req.body.description,
         categoryId: req.body.categoryId,
         fileUrl,
+        thumbnailUrl: req.body.thumbnailUrl,
         durationSeconds: req.body.durationSeconds,
       }, req.user.id);
       return created(res, video);
@@ -349,13 +472,14 @@ const contentController = {
   },
   async uploadPodcast(req, res, next) {
     try {
-      const fileUrl = `/uploads/podcasts/${req.file.filename}`;
+      const fileUrl = req.file ? `/uploads/podcasts/${req.file.filename}` : (req.body.fileUrl || null);
       const podcast = await contentService.createPodcast({
         title: req.body.title,
         description: req.body.description,
         categoryId: req.body.categoryId,
         moodSlug: req.body.moodSlug,
         fileUrl,
+        coverUrl: req.body.coverUrl,
         durationSeconds: req.body.durationSeconds,
       }, req.user.id);
       return created(res, podcast);
@@ -427,6 +551,24 @@ const classController = {
       next(err);
     }
   },
+
+  async removeStudent(req, res, next) {
+    try {
+      const result = await classService.removeStudent(req.params.id, req.params.studentId, req.user.id);
+      return success(res, result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async removeTeacher(req, res, next) {
+    try {
+      const result = await classService.removeTeacher(req.params.id, req.params.teacherId, req.user.id);
+      return success(res, result);
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 const parentController = {
@@ -477,4 +619,6 @@ module.exports = {
   contentController,
   classController,
   parentController,
+  clubController,
+  bookController,
 };

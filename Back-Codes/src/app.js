@@ -15,9 +15,18 @@ function createApp() {
 
   app.set('trust proxy', 1);
 
-  app.use(helmet());
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+  const allowedOrigins = config.security.corsOrigin;
   app.use(cors({
-    origin: config.security.corsOrigin,
+    origin(origin, callback) {
+      // درخواست‌های same-origin / ابزارهای سرور (بدون origin) مجاز
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
@@ -27,9 +36,11 @@ function createApp() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(requestId);
   app.use(accessLogger);
-  
-  // ✅ غیرفعال کردن Rate Limiting برای توسعه
-  // app.use(globalLimiter());
+
+  // Rate limiting فقط در production فعال است
+  if (config.env === 'production') {
+    app.use(globalLimiter());
+  }
 
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString(), version: config.apiVersion });

@@ -77,6 +77,55 @@ async function seed() {
     );
   }
 
+  const dailyTasks = [
+    { slug: 'mood_today', title: 'ثبت حال امروز', icon: 'mood', category: 'health', points: 5, tokens: 2 },
+    { slug: 'breathing_today', title: 'یک تمرین تنفس انجام بده', icon: 'breath', category: 'health', points: 5, tokens: 2 },
+    { slug: 'watch_video', title: 'یک ویدیوی آموزشی تماشا کن', icon: 'tv', category: 'learn', points: 8, tokens: 3 },
+    { slug: 'play_game', title: 'یک بازی کتاب را کامل کن', icon: 'game', category: 'learn', points: 10, tokens: 5 },
+    { slug: 'write_secret', title: 'یک راز در دفترچه بنویس', icon: 'secret', category: 'health', points: 3, tokens: 1 },
+  ];
+  for (const t of dailyTasks) {
+    await query(
+      `INSERT INTO daily_tasks (slug, title_fa, icon, category, points_reward, token_reward, is_active)
+       VALUES (:slug, :title, :icon, :category, :points, :tokens, 1)
+       ON DUPLICATE KEY UPDATE title_fa = VALUES(title_fa), icon = VALUES(icon),
+         category = VALUES(category), points_reward = VALUES(points_reward), token_reward = VALUES(token_reward)`,
+      t
+    );
+  }
+
+  const rewards = [
+    { slug: 'avatar_frame', title: 'قاب آواتار طلایی', desc: 'یک قاب ویژه برای پروفایل', cost: 50, sort: 1 },
+    { slug: 'garden_seed', title: 'بذر کمیاب باغچه', desc: 'یک گیاه خاص در باغچه‌ات بکار', cost: 80, sort: 2 },
+    { slug: 'sticker_pack', title: 'بسته استیکر لوکو', desc: 'مجموعه استیکرهای بامزه', cost: 30, sort: 3 },
+    { slug: 'badge_booster', title: 'افزایش‌دهنده امتیاز', desc: 'امتیاز دو برابر برای یک روز', cost: 120, sort: 4 },
+  ];
+  for (const r of rewards) {
+    await query(
+      `INSERT INTO rewards (slug, title, description, cost_coins, sort_order, is_active)
+       VALUES (:slug, :title, :desc, :cost, :sort, 1)
+       ON DUPLICATE KEY UPDATE title = VALUES(title), description = VALUES(description),
+         cost_coins = VALUES(cost_coins), sort_order = VALUES(sort_order)`,
+      r
+    );
+  }
+
+  const books = [
+    { title: 'ماجراهای جنگل', desc: 'یادگیری اعداد با حیوانات جنگل', game: 'https://example.com/games/jungle', cover: '/uploads/books/jungle.png', coin: 10, sort: 1 },
+    { title: 'سفر به فضا', desc: 'آشنایی با سیارات', game: 'https://example.com/games/space', cover: '/uploads/books/space.png', coin: 15, sort: 2 },
+    { title: 'دنیای رنگ‌ها', desc: 'یادگیری رنگ‌ها و شکل‌ها', game: 'https://example.com/games/colors', cover: '/uploads/books/colors.png', coin: 10, sort: 3 },
+  ];
+  const [bookCount] = await query('SELECT COUNT(*) AS cnt FROM books');
+  if (bookCount.cnt === 0) {
+    for (const b of books) {
+      await query(
+        `INSERT INTO books (class_id, title, description, game_url, cover_url, coin_reward, sort_order, is_active)
+         VALUES (NULL, :title, :desc, :game, :cover, :coin, :sort, 1)`,
+        b
+      );
+    }
+  }
+
   const existingAdmin = await query('SELECT id FROM users WHERE username = :u', { u: 'loko_admin' });
   if (existingAdmin.length === 0) {
     const password = 'Admin@12345';

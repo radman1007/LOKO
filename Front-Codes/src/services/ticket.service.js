@@ -3,8 +3,14 @@ import apiClient from './api.client';
 
 export const ticketService = {
   // دریافت لیست تیکت‌ها
-  getTickets: async () => {
-    const response = await apiClient.get('/tickets');
+  getTickets: async (params = {}) => {
+    const response = await apiClient.get('/tickets', { params });
+    return response.data;
+  },
+
+  // دریافت یک تیکت + پیام‌ها
+  getTicket: async (id) => {
+    const response = await apiClient.get(`/tickets/${id}`);
     return response.data;
   },
 
@@ -15,8 +21,8 @@ export const ticketService = {
   },
 
   // پاسخ به تیکت
-  replyTicket: async (id, data) => {
-    const response = await apiClient.post(`/tickets/${id}/reply`, data);
+  replyTicket: async (id, message) => {
+    const response = await apiClient.post(`/tickets/${id}/reply`, { message });
     return response.data;
   },
 
@@ -26,3 +32,5 @@ export const ticketService = {
     return response.data;
   },
 };
+
+export default ticketService;
