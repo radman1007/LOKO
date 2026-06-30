@@ -378,19 +378,54 @@ const classController = {
     try {
       const schoolId = req.user.role === 'team_admin' ? req.params.schoolId : req.user.schoolId;
       return success(res, await classService.list(schoolId));
-    } catch (err) { next(err); }
+    } catch (err) { 
+      next(err); 
+    }
   },
+
   async get(req, res, next) {
     try {
       const schoolId = req.user.role === 'team_admin' ? null : req.user.schoolId;
       return success(res, await classService.getById(req.params.id, schoolId));
-    } catch (err) { next(err); }
+    } catch (err) { 
+      next(err); 
+    }
   },
+
   async create(req, res, next) {
     try {
       const schoolId = req.params.schoolId || req.user.schoolId;
       return created(res, await classService.create(req.body, schoolId));
-    } catch (err) { next(err); }
+    } catch (err) { 
+      next(err); 
+    }
+  },
+
+  async addStudent(req, res, next) {
+    try {
+      const result = await classService.addStudent(
+        req.params.id,
+        req.body.studentId,
+        req.user.id
+      );
+      return success(res, result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async addTeacher(req, res, next) {
+    try {
+      const result = await classService.addTeacher(
+        req.params.id,
+        req.body.teacherId,
+        req.body.isPrimary || false,
+        req.user.id
+      );
+      return success(res, result);
+    } catch (err) {
+      next(err);
+    }
   },
 };
 

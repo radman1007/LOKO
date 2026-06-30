@@ -1,13 +1,13 @@
 // src/pages/Login.jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import Logo from '../icons/icon26.png';
 
 const Login = () => {
+  const { login, user, loading } = useUser();
   const navigate = useNavigate();
-  const { login } = useUser();
-  
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [focusedField, setFocusedField] = useState(null);
@@ -18,86 +18,124 @@ const Login = () => {
     primary: '#4DB6AC',
     bg: '#E8F5E9',
     cardBg: '#FFFFFF',
-    text: '#455A64'
+    text: '#455A64',
+    textSecondary: '#78909C'
   };
+
+  // هدایت کاربر بعد از ورود
+  useEffect(() => {
+    if (!loading && user) {
+      const routes = {
+        admin: '/admin-panel',
+        team_admin: '/admin-panel',
+        school_manager: '/school-panel',
+        teacher: '/teacher-panel',
+        parent: `/student-profile/${user.child}`,
+        student: user.isProfileComplete ? '/' : '/complete-profile'
+      };
+
+      navigate(routes[user.role] || '/', { replace: true });
+    }
+  }, [loading, user, navigate]);
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: colors.bg
+        }}
+      >
+        <div
+          style={{
+            width: '40px',
+            height: '40px',
+            border: `3px solid ${colors.primary}`,
+            borderTopColor: 'transparent',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }}
+        />
+        <style>{`
+          @keyframes spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   const handleSubmit = async () => {
     setError('');
-    
+
     if (!username.trim() || !password.trim()) {
       setError('لطفاً نام کاربری و رمز عبور را وارد کنید');
       return;
     }
 
     setIsLoading(true);
-    
-    setTimeout(() => {
-      const result = login(username, password);
-      
-      if (result.success) {
-        const user = result.user;
-        
-        // اگر دانش‌آموز است و پروفایل کامل نیست، به صفحه تکمیل پروفایل برود
-        if (user.role === 'student' && !user.isProfileComplete) {
-          navigate('/complete-profile');
-        } 
-        // والدین
-        else if (user.role === 'parent') {
-          navigate(`/student-profile/${user.child}`);
-        }
-        // مدیریتی
-        else if (user.role === 'admin') {
-          navigate('/admin-panel');
-        } else if (user.role === 'school_manager') {
-          navigate('/school-panel');
-        } else if (user.role === 'teacher') {
-          navigate('/teacher-panel');
-        }
-        // سایر
-        else {
-          navigate('/');
-        }
-      } else {
-        setError(result.error);
+
+    try {
+      const result = await login(username, password);
+
+      if (!result?.success) {
+        setError(result?.error || 'ورود ناموفق بود');
       }
-      
-      setIsLoading(false);
-    }, 500);
+      // در صورت موفقیت useEffect بالا کاربر را هدایت می‌کند.
+    } catch (err) {
+      setError('خطا در ارتباط با سرور');
+    }
+
+    setIsLoading(false);
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSubmit();
-    }
-  };
+  // تا زمان هدایت چیزی نمایش نده
+  if (!loading && user) {
+    return null;
+  }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: colors.bg,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Vazir", "IRANSans", sans-serif'
-    }}>
-      
-      <div style={{
-        maxWidth: '400px',
-        width: '100%',
-        background: colors.cardBg,
-        borderRadius: '28px',
-        padding: '40px 24px',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.08)',
-        animation: 'fadeInUp 0.4s ease'
-      }}>
-        
+    <div
+      style={{
+        minHeight: '100vh',
+        background: colors.bg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px'
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '400px',
+          width: '100%',
+          background: colors.cardBg,
+          borderRadius: '28px',
+          padding: '40px 24px',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.08)'
+        }}
+      >
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <img src={Logo} alt="Loco" style={{ width: '70px', height: '70px' }} />
+          <img
+            src={Logo}
+            alt="Loco"
+            style={{ width: '70px', height: '70px' }}
+          />
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ color: colors.primary, fontSize: '26px', fontWeight: '700', marginBottom: '6px' }}>
+          <h1
+            style={{
+              color: colors.primary,
+              fontSize: '26px',
+              fontWeight: '700'
+            }}
+          >
             لوکو
           </h1>
           <p style={{ color: colors.text, fontSize: '14px' }}>
@@ -106,112 +144,136 @@ const Login = () => {
         </div>
 
         {error && (
-          <div style={{
-            backgroundColor: '#FFEBEE',
-            color: '#F44336',
-            padding: '10px 16px',
-            borderRadius: '12px',
-            fontSize: '12px',
-            marginBottom: '20px',
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#FFEBEE',
+              color: '#F44336',
+              padding: '10px 16px',
+              borderRadius: '12px',
+              fontSize: '12px',
+              marginBottom: '20px',
+              textAlign: 'center'
+            }}
+          >
             {error}
           </div>
         )}
 
-        <div style={{ marginBottom: '24px', position: 'relative' }}>
-          <div style={{
-            position: 'relative',
-            background: 'transparent',
-            borderRadius: '16px',
-            border: `2px solid ${focusedField === 'username' || username ? colors.primary : '#E0E0E0'}`,
-            transition: 'all 0.2s ease'
-          }}>
+        <div style={{ marginBottom: '24px' }}>
+          <div
+            style={{
+              position: 'relative',
+              borderRadius: '16px',
+              border: `2px solid ${
+                focusedField === 'username' || username
+                  ? colors.primary
+                  : '#E0E0E0'
+              }`
+            }}
+          >
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               onFocus={() => setFocusedField('username')}
               onBlur={() => setFocusedField(null)}
-              onKeyPress={handleKeyPress}
               disabled={isLoading}
               style={{
                 width: '100%',
-                padding: '18px 18px 8px 18px',
+                padding: '18px 18px 8px',
                 border: 'none',
                 borderRadius: '16px',
                 fontSize: '15px',
                 outline: 'none',
                 background: 'transparent',
                 boxSizing: 'border-box',
-                textAlign: 'right',
-                direction: 'rtl'
+                textAlign: 'right'
               }}
-              placeholder=""
             />
-            <label style={{
-              position: 'absolute',
-              right: '16px',
-              top: (focusedField === 'username' || username) ? '-10px' : '50%',
-              transform: (focusedField === 'username' || username) ? 'translateY(0)' : 'translateY(-50%)',
-              fontSize: (focusedField === 'username' || username) ? '11px' : '15px',
-              color: (focusedField === 'username' || username) ? colors.primary : '#9AA6B5',
-              transition: 'all 0.2s ease',
-              pointerEvents: 'none',
-              background: colors.cardBg,
-              padding: (focusedField === 'username' || username) ? '0 8px' : '0',
-              right: '16px',
-              zIndex: 1
-            }}>
+
+            <label
+              style={{
+                position: 'absolute',
+                right: '16px',
+                top:
+                  focusedField === 'username' || username ? '-10px' : '50%',
+                transform:
+                  focusedField === 'username' || username
+                    ? 'translateY(0)'
+                    : 'translateY(-50%)',
+                fontSize:
+                  focusedField === 'username' || username ? '11px' : '15px',
+                color:
+                  focusedField === 'username' || username
+                    ? colors.primary
+                    : '#9AA6B5',
+                transition: 'all .2s',
+                pointerEvents: 'none',
+                background: colors.cardBg,
+                padding:
+                  focusedField === 'username' || username ? '0 8px' : '0'
+              }}
+            >
               نام کاربری
             </label>
           </div>
         </div>
 
-        <div style={{ marginBottom: '28px', position: 'relative' }}>
-          <div style={{
-            position: 'relative',
-            background: 'transparent',
-            borderRadius: '16px',
-            border: `2px solid ${focusedField === 'password' || password ? colors.primary : '#E0E0E0'}`,
-            transition: 'all 0.2s ease'
-          }}>
+        <div style={{ marginBottom: '28px' }}>
+          <div
+            style={{
+              position: 'relative',
+              borderRadius: '16px',
+              border: `2px solid ${
+                focusedField === 'password' || password
+                  ? colors.primary
+                  : '#E0E0E0'
+              }`
+            }}
+          >
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setFocusedField('password')}
               onBlur={() => setFocusedField(null)}
-              onKeyPress={handleKeyPress}
               disabled={isLoading}
               style={{
                 width: '100%',
-                padding: '18px 18px 8px 18px',
+                padding: '18px 18px 8px',
                 border: 'none',
                 borderRadius: '16px',
                 fontSize: '15px',
                 outline: 'none',
                 background: 'transparent',
                 boxSizing: 'border-box',
-                textAlign: 'right',
-                direction: 'rtl'
+                textAlign: 'right'
               }}
-              placeholder=""
             />
-            <label style={{
-              position: 'absolute',
-              right: '16px',
-              top: (focusedField === 'password' || password) ? '-10px' : '50%',
-              transform: (focusedField === 'password' || password) ? 'translateY(0)' : 'translateY(-50%)',
-              fontSize: (focusedField === 'password' || password) ? '11px' : '15px',
-              color: (focusedField === 'password' || password) ? colors.primary : '#9AA6B5',
-              transition: 'all 0.2s ease',
-              pointerEvents: 'none',
-              background: colors.cardBg,
-              padding: (focusedField === 'password' || password) ? '0 8px' : '0',
-              right: '16px',
-              zIndex: 1
-            }}>
+
+            <label
+              style={{
+                position: 'absolute',
+                right: '16px',
+                top:
+                  focusedField === 'password' || password ? '-10px' : '50%',
+                transform:
+                  focusedField === 'password' || password
+                    ? 'translateY(0)'
+                    : 'translateY(-50%)',
+                fontSize:
+                  focusedField === 'password' || password ? '11px' : '15px',
+                color:
+                  focusedField === 'password' || password
+                    ? colors.primary
+                    : '#9AA6B5',
+                transition: 'all .2s',
+                pointerEvents: 'none',
+                background: colors.cardBg,
+                padding:
+                  focusedField === 'password' || password ? '0 8px' : '0'
+              }}
+            >
               رمز عبور
             </label>
           </div>
@@ -224,30 +286,33 @@ const Login = () => {
             width: '100%',
             padding: '14px',
             background: isLoading ? '#B0BEC5' : colors.primary,
-            color: 'white',
+            color: '#fff',
             border: 'none',
             borderRadius: '20px',
             fontSize: '16px',
             fontWeight: '600',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            transition: 'all 0.3s ease',
-            boxShadow: isLoading ? 'none' : `0 3px 10px ${colors.primary}50`
+            cursor: isLoading ? 'not-allowed' : 'pointer'
           }}
         >
           {isLoading ? 'در حال ورود...' : 'ورود به لوکو'}
         </button>
-      </div>
 
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0px 1000px white inset;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-      `}</style>
+        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+          <Link
+            to="/register"
+            style={{
+              color: colors.textSecondary,
+              fontSize: '13px',
+              textDecoration: 'none'
+            }}
+          >
+            ثبت‌نام نکردی؟{' '}
+            <span style={{ color: colors.primary, fontWeight: '600' }}>
+              ثبت‌نام
+            </span>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 };

@@ -27,7 +27,9 @@ function createApp() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(requestId);
   app.use(accessLogger);
-  app.use(globalLimiter());
+  
+  // ✅ غیرفعال کردن Rate Limiting برای توسعه
+  // app.use(globalLimiter());
 
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString(), version: config.apiVersion });

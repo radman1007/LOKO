@@ -1,4 +1,7 @@
+// src/contexts/HealthContext.jsx
 import React, { useState, createContext, useContext, useEffect } from 'react';
+import { moodService, breathingService } from '../services/mood.service';
+import { useUser } from './UserContext';
 
 const HealthContext = createContext();
 
@@ -11,155 +14,192 @@ export const useHealth = () => {
 };
 
 export const HealthProvider = ({ children }) => {
-  // بارگذاری اولیه از localStorage
-  const loadInitialData = () => {
-    const saved = localStorage.getItem('locoHealthData');
-    if (saved && saved !== 'undefined') {
-      try {
-        return JSON.parse(saved);
-      } catch(e) {
-        console.error('Error parsing health data:', e);
-      }
-    }
-    return {
-      lastMoodCheck: null,
-      lastMoodTime: null,
-      lastModalShownTime: null,
-      lastModalDismissTime: null,
-      dailyStats: {},
-      moodHistory: [],
-      breathingHistory: []
-    };
-  };
-
-  const [healthData, setHealthData] = useState(loadInitialData);
+  const { updateUser } = useUser(); // دریافت تابع updateUser
+  const [healthData, setHealthData] = useState({
+    lastMoodCheck: null,
+    lastMoodTime: null,
+    lastModalShownTime: null,
+    lastModalDismissTime: null,
+    dailyStats: {},
+    moodHistory: [],
+    breathingHistory: []
+  });
+  
   const [showMoodReminder, setShowMoodReminder] = useState(false);
   const [reminderDismissed, setReminderDismissed] = useState(false);
   const [showSuggestion, setShowSuggestion] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // ذخیره در localStorage هر بار که healthData تغییر کند
+  // ========== بارگذاری داده‌ها از سرور ==========
   useEffect(() => {
-    if (healthData && Object.keys(healthData).length > 0) {
-      localStorage.setItem('locoHealthData', JSON.stringify(healthData));
-      console.log('Saved to localStorage:', healthData);
-    }
-  }, [healthData]);
-
-  // بارگذاری وضعیت ریمایندر
-  useEffect(() => {
-    const savedReminder = localStorage.getItem('locoReminderStatus');
-    if (savedReminder && savedReminder !== 'undefined') {
+    const loadHealthData = async () => {
       try {
-        const parsed = JSON.parse(savedReminder);
-        setReminderDismissed(parsed.dismissed || false);
-      } catch(e) { console.error(e); }
-    }
+        // دریافت تاریخچه مود از سرور
+        const moodHistory = await moodService.getHistory();
+        // دریافت تاریخچه تنفس از سرور
+        const breathingHistory = await breathingService.getSessions();
+        
+        setHealthData(prev => ({
+          ...prev,
+          moodHistory: moodHistory || [],
+          breathingHistory: breathingHistory || [],
+        }));
+        
+        // بررسی نیاز به نمایش مودال
+        await checkMoodPrompt();
+        
+      } catch (error) {
+        console.error('Error loading health data:', error);
+        // اگر خطا خورد، از localStorage استفاده کن
+        const saved = localStorage.getItem('locoHealthData');
+        if (saved && saved !== 'undefined') {
+          try {
+            const parsed = JSON.parse(saved);
+            setHealthData(parsed);
+          } catch(e) {
+            console.error('Error parsing health data:', e);
+          }
+        }
+      }
+      setLoading(false);
+    };
+
+    loadHealthData();
   }, []);
 
-  // ذخیره وضعیت ریمایندر
+  // ========== ذخیره در localStorage (به عنوان کش) ==========
   useEffect(() => {
-    localStorage.setItem('locoReminderStatus', JSON.stringify({ dismissed: reminderDismissed }));
-  }, [reminderDismissed]);
-
-  // بررسی نمایش مودال
-  useEffect(() => {
-    const now = Date.now();
-    const today = new Date().toDateString();
-    const fourHours = 4 * 60 * 60 * 1000;
-    
-    const lastModalShown = healthData?.lastModalShownTime || 0;
-    const lastModalDismiss = healthData?.lastModalDismissTime || 0;
-    const lastMoodDate = healthData?.lastMoodCheck ? new Date(healthData.lastMoodCheck).toDateString() : null;
-    
-    const timeSinceLastShown = now - lastModalShown;
-    const timeSinceLastDismiss = now - lastModalDismiss;
-    
-    const shouldShow = (timeSinceLastShown >= fourHours || 
-                        timeSinceLastDismiss >= fourHours || 
-                        lastMoodDate !== today);
-    
-    setShowMoodReminder(shouldShow);
-    
-    // پیشنهاد تنفس
-    const todayStats = healthData?.dailyStats?.[today] || {};
-    if (!todayStats.breathingSessions?.length && reminderDismissed && lastMoodDate === today && !showSuggestion) {
-      setShowSuggestion(true);
+    if (!loading && healthData && Object.keys(healthData).length > 0) {
+      localStorage.setItem('locoHealthData', JSON.stringify(healthData));
     }
-  }, [healthData, reminderDismissed]);
+  }, [healthData, loading]);
 
-  const recordMood = (mood) => {
-    const now = Date.now();
-    const nowDate = new Date();
-    const today = nowDate.toDateString();
-    
-    const newMoodEntry = {
-      date: nowDate.toISOString(),
-      mood: mood,
-      timestamp: now
-    };
-    
-    setHealthData(prev => {
-      const currentDailyStats = prev?.dailyStats || {};
-      const newData = {
-        ...prev,
-        lastMoodCheck: nowDate.toISOString(),
-        lastMoodTime: now,
-        lastModalShownTime: now,
-        moodHistory: [...(prev?.moodHistory || []), newMoodEntry],
-        dailyStats: {
-          ...currentDailyStats,
-          [today]: {
-            ...(currentDailyStats[today] || {}),
-            moods: [...(currentDailyStats[today]?.moods || []), mood],
-            lastMood: mood,
-            lastMoodTime: now
-          }
-        }
-      };
-      return newData;
-    });
-    
-    setShowMoodReminder(false);
-    setReminderDismissed(false);
-    setShowSuggestion(false);
-  };
-
-  const recordBreathing = (duration, count) => {
-    const nowDate = new Date();
-    const today = nowDate.toDateString();
-    const now = Date.now();
-    
-    const newBreathingEntry = {
-      date: nowDate.toISOString(),
-      duration: duration,
-      count: count,
-      timestamp: now
-    };
-    
-    setHealthData(prev => {
-      const currentDailyStats = prev?.dailyStats || {};
-      const currentTodayStats = currentDailyStats[today] || {};
+  // ========== بررسی نیاز به نمایش مودال ==========
+  const checkMoodPrompt = async () => {
+    try {
+      const response = await moodService.checkPrompt();
+      setShowMoodReminder(response.shouldShow || false);
+    } catch (error) {
+      console.error('Error checking mood prompt:', error);
+      // fallback: بررسی محلی
+      const now = Date.now();
+      const today = new Date().toDateString();
+      const fourHours = 4 * 60 * 60 * 1000;
       
-      const newData = {
-        ...prev,
-        lastBreathingSession: nowDate.toISOString(),
-        breathingHistory: [...(prev?.breathingHistory || []), newBreathingEntry],
-        dailyStats: {
-          ...currentDailyStats,
-          [today]: {
-            ...currentTodayStats,
-            breathingSessions: [...(currentTodayStats.breathingSessions || []), { duration, count }],
-            totalBreathingTime: (currentTodayStats.totalBreathingTime || 0) + duration,
-            totalBreaths: (currentTodayStats.totalBreaths || 0) + count
-          }
-        }
-      };
-      return newData;
-    });
-    
-    setShowSuggestion(false);
+      const lastModalShown = healthData?.lastModalShownTime || 0;
+      const lastModalDismiss = healthData?.lastModalDismissTime || 0;
+      const lastMoodDate = healthData?.lastMoodCheck ? new Date(healthData.lastMoodCheck).toDateString() : null;
+      
+      const shouldShow = (now - lastModalShown >= fourHours || 
+                          now - lastModalDismiss >= fourHours || 
+                          lastMoodDate !== today);
+      
+      setShowMoodReminder(shouldShow);
+    }
   };
 
+  // ========== ثبت وضعیت روحی ==========
+  const recordMood = async (mood) => {
+    try {
+      // ارسال به سرور
+      await moodService.checkin({ mood });
+      
+      // ====== به‌روزرسانی اطلاعات کاربر ======
+      if (updateUser) {
+        await updateUser();
+      }
+      
+      const now = Date.now();
+      const nowDate = new Date();
+      const today = nowDate.toDateString();
+      
+      const newMoodEntry = {
+        date: nowDate.toISOString(),
+        mood: mood,
+        timestamp: now
+      };
+      
+      setHealthData(prev => {
+        const currentDailyStats = prev?.dailyStats || {};
+        const newData = {
+          ...prev,
+          lastMoodCheck: nowDate.toISOString(),
+          lastMoodTime: now,
+          lastModalShownTime: now,
+          moodHistory: [...(prev?.moodHistory || []), newMoodEntry],
+          dailyStats: {
+            ...currentDailyStats,
+            [today]: {
+              ...(currentDailyStats[today] || {}),
+              moods: [...(currentDailyStats[today]?.moods || []), mood],
+              lastMood: mood,
+              lastMoodTime: now
+            }
+          }
+        };
+        return newData;
+      });
+      
+      setShowMoodReminder(false);
+      setReminderDismissed(false);
+      setShowSuggestion(false);
+      
+    } catch (error) {
+      console.error('Error recording mood:', error);
+    }
+  };
+
+  // ========== ثبت جلسه تنفس ==========
+  const recordBreathing = async (duration, count) => {
+    try {
+      // ارسال به سرور
+      await breathingService.createSession({ duration, count });
+      
+      // ====== به‌روزرسانی اطلاعات کاربر ======
+      if (updateUser) {
+        await updateUser();
+      }
+      
+      const nowDate = new Date();
+      const today = nowDate.toDateString();
+      const now = Date.now();
+      
+      const newBreathingEntry = {
+        date: nowDate.toISOString(),
+        duration: duration,
+        count: count,
+        timestamp: now
+      };
+      
+      setHealthData(prev => {
+        const currentDailyStats = prev?.dailyStats || {};
+        const currentTodayStats = currentDailyStats[today] || {};
+        
+        const newData = {
+          ...prev,
+          lastBreathingSession: nowDate.toISOString(),
+          breathingHistory: [...(prev?.breathingHistory || []), newBreathingEntry],
+          dailyStats: {
+            ...currentDailyStats,
+            [today]: {
+              ...currentTodayStats,
+              breathingSessions: [...(currentTodayStats.breathingSessions || []), { duration, count }],
+              totalBreathingTime: (currentTodayStats.totalBreathingTime || 0) + duration,
+              totalBreaths: (currentTodayStats.totalBreaths || 0) + count
+            }
+          }
+        };
+        return newData;
+      });
+      
+      setShowSuggestion(false);
+      
+    } catch (error) {
+      console.error('Error recording breathing:', error);
+    }
+  };
+
+  // ========== دریافت آمار امروز ==========
   const getTodayStats = () => {
     const today = new Date().toDateString();
     const stats = healthData?.dailyStats?.[today] || {
@@ -186,6 +226,7 @@ export const HealthProvider = ({ children }) => {
     };
   };
 
+  // ========== دریافت آمار هفتگی ==========
   const getWeeklyStats = () => {
     const weeklyStats = [];
     const days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
@@ -218,15 +259,16 @@ export const HealthProvider = ({ children }) => {
     return weeklyStats;
   };
 
+  // ========== درصد پیشرفت ==========
   const getProgressPercentage = () => {
     const weeklyStats = getWeeklyStats();
     const currentWeekAvg = weeklyStats.slice(0, 7).reduce((sum, day) => sum + day.focusScore, 0) / 7;
     return Math.round(Math.min(currentWeekAvg, 100));
   };
 
+  // ========== رد کردن یادآوری ==========
   const dismissReminder = () => {
     const now = Date.now();
-    
     setShowMoodReminder(false);
     setReminderDismissed(true);
     
@@ -241,24 +283,31 @@ export const HealthProvider = ({ children }) => {
     }
   };
 
+  // ========== رد کردن پیشنهاد تنفس ==========
   const dismissSuggestion = () => {
     setShowSuggestion(false);
   };
 
   return (
-    <HealthContext.Provider value={{
-      healthData,
-      showMoodReminder,
-      showSuggestion,
-      recordMood,
-      recordBreathing,
-      getTodayStats,
-      getWeeklyStats,
-      getProgressPercentage,
-      dismissReminder,
-      dismissSuggestion
-    }}>
+    <HealthContext.Provider
+      value={{
+        healthData,
+        showMoodReminder,
+        showSuggestion,
+        loading,
+        recordMood,
+        recordBreathing,
+        getTodayStats,
+        getWeeklyStats,
+        getProgressPercentage,
+        dismissReminder,
+        dismissSuggestion,
+        checkMoodPrompt,
+      }}
+    >
       {children}
     </HealthContext.Provider>
   );
 };
+
+export default HealthContext;

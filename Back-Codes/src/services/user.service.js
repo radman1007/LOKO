@@ -4,6 +4,7 @@ const { NotFoundError, ForbiddenError } = require('../utils/errors');
 const { ROLES } = require('../config/permissions');
 const auditService = require('./audit.service');
 
+// بررسی کنید که ROLE_IDS درست تعریف شده باشد
 const ROLE_IDS = {
   team_admin: 1,
   school_admin: 2,
@@ -14,32 +15,34 @@ const ROLE_IDS = {
 
 async function list(schoolId, { role = null, page = 1, limit = 20, includeDeleted = false } = {}) {
   const offset = (page - 1) * limit;
-  let where = 'WHERE u.school_id = :schoolId';
-  const params = { schoolId, limit, offset };
+  let where = 'WHERE u.school_id = ?';
+  const params = [schoolId];
 
   if (!includeDeleted) where += ' AND u.deleted_at IS NULL';
   if (role) {
-    where += ' AND r.slug = :role';
-    params.role = role;
+    where += ' AND r.slug = ?';
+    params.push(role);
   }
 
   const users = await query(
     `SELECT u.id, u.username, u.first_name, u.last_name, u.is_active, r.slug AS role, u.created_at
      FROM users u JOIN roles r ON r.id = u.role_id
-     ${where} ORDER BY u.created_at DESC LIMIT :limit OFFSET :offset`,
-    params
+     ${where} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
   );
+  
   const [countRow] = await query(
     `SELECT COUNT(*) AS total FROM users u JOIN roles r ON r.id = u.role_id ${where}`,
     params
   );
-  return { users, total: countRow.total, page, limit };
+  
+  return { users, total: countRow?.total || 0, page, limit };
 }
 
 async function getById(id, schoolId = null) {
   let sql = `SELECT u.*, r.slug AS role_slug FROM users u
-             JOIN roles r ON r.id = u.role_id WHERE u.id = :id AND u.deleted_at IS NULL`;
-  const user = await queryOne(sql, { id });
+             JOIN roles r ON r.id = u.role_id WHERE u.id = ? AND u.deleted_at IS NULL`;
+  const user = await queryOne(sql, [id]);
   if (!user) throw new NotFoundError('User');
   if (schoolId && user.school_id !== schoolId) throw new ForbiddenError('Access denied');
   return user;
@@ -54,7 +57,7 @@ async function getPassword(id, schoolId, actorRole) {
 }
 
 async function create(data, schoolId, createdBy) {
-  const school = await queryOne('SELECT code FROM schools WHERE id = :id', { id: schoolId });
+  const school = await queryOne('SELECT code FROM schools WHERE id = ?', [schoolId]);
   if (!school) throw new NotFoundError('School');
 
   const roleId = ROLE_IDS[data.role];
@@ -76,6 +79,7 @@ async function create(data, schoolId, createdBy) {
     const password = generateSecurePassword(10);
     const passwordHash = await hashPassword(password);
 
+    // ✅ تصحیح: استفاده از ? به جای named parameters
     const [result] = await conn.execute(
       `INSERT INTO users (school_id, role_id, username, password_hash, plain_password, first_name, last_name, national_code, phone, email, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -112,10 +116,10 @@ async function softDeleteStudent(studentId, schoolId, actorId) {
     throw new ForbiddenError('Only students can be soft-deleted this way');
   }
 
-  await query('UPDATE users SET deleted_at = NOW(), is_active = 0 WHERE id = :id', { id: studentId });
+  await query('UPDATE users SET deleted_at = NOW(), is_active = 0 WHERE id = ?', [studentId]);
   await query(
-    'UPDATE class_students SET is_visible = 0, deleted_at = NOW() WHERE student_id = :id',
-    { id: studentId }
+    'UPDATE class_students SET is_visible = 0, deleted_at = NOW() WHERE student_id = ?',
+    [studentId]
   );
 
   await auditService.log({

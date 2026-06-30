@@ -1,14 +1,11 @@
 // src/pages/AdminPanel.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
-import TicketList from '../components/common/TicketList';
-import { 
-  HiOutlineHome, 
+import apiClient from '../services/api.client';
+import TicketList from './TicketList'
+import {
   HiOutlineUser,
-  HiOutlineFire,
-  HiOutlinePlay,
-  HiOutlineHeart,
   HiOutlineChartBar,
   HiOutlineOfficeBuilding,
   HiOutlineVideoCamera,
@@ -16,378 +13,509 @@ import {
   HiOutlineTicket,
   HiOutlinePlus,
   HiOutlineTrash,
-  HiOutlinePencil,
-  HiOutlineX,
-  HiOutlineCheck,
+  HiOutlineUpload,
+  HiOutlineUsers,
   HiOutlineUserAdd,
-  HiOutlineUsers
+  HiOutlineAcademicCap,
+  HiOutlineChevronDown,
+  HiOutlineChevronLeft,
+  HiOutlineEye,
+  HiOutlineEyeOff
 } from 'react-icons/hi';
 
 const AdminPanel = () => {
   const navigate = useNavigate();
   const { user, logout } = useUser();
-  const [activeAdminTab, setActiveAdminTab] = useState('schools');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  
-  // داده‌ها
+  const [loading, setLoading] = useState(false);
+
+  // ========== داده‌ها ==========
   const [schools, setSchools] = useState([]);
-  const [teachersList, setTeachersList] = useState([]);
-  const [studentsList, setStudentsList] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [classes, setClasses] = useState({});
   const [videos, setVideos] = useState([]);
   const [podcasts, setPodcasts] = useState([]);
-  
-  // انتخاب‌ها
-  const [selectedSchool, setSelectedSchool] = useState('');
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedStudents, setSelectedStudents] = useState([]);
-  
-  // مدال‌ها
-  const [showAddSchoolModal, setShowAddSchoolModal] = useState(false);
-  const [showAddClassModal, setShowAddClassModal] = useState(false);
-  const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
-  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
-  const [showVideoModal, setShowVideoModal] = useState(false);
-  const [showPodcastModal, setShowPodcastModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  
-  const [newSchoolName, setNewSchoolName] = useState('');
-  const [newSchoolCity, setNewSchoolCity] = useState('');
-  const [newClassName, setNewClassName] = useState('');
-  const [newTeacherName, setNewTeacherName] = useState('');
-  const [newTeacherUsername, setNewTeacherUsername] = useState('');
 
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // ========== وضعیت‌های UI ==========
+  const [expandedSchools, setExpandedSchools] = useState({});
+  const [expandedClasses, setExpandedClasses] = useState({});
+  const [selectedSchool, setSelectedSchool] = useState(null);
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [showPassword, setShowPassword] = useState({});
+
+  // ========== مودال‌ها ==========
+  const [modals, setModals] = useState({
+    school: false,
+    class: false,
+    teacher: false,
+    student: false,
+    admin: false,
+    addStudentToClass: false,
+    addTeacherToClass: false,
+    video: false,
+    podcast: false,
+    userPassword: false
+  });
+
+  // ========== فرم‌ها ==========
+  const [form, setForm] = useState({
+    schoolName: '',
+    schoolCode: '',
+    schoolAddress: '',
+    schoolPhone: '',
+    schoolEmail: '',
+    className: '',
+    classGrade: '',
+    classAcademicYear: '',
+    teacherName: '',
+    teacherUsername: '',
+    teacherPassword: '',
+    studentName: '',
+    studentLastName: '',
+    studentUsername: '',
+    studentPassword: '',
+    adminName: '',
+    adminLastName: '',
+    adminUsername: '',
+    adminPassword: ''
+  });
+
+  const [selectedStudentsForClass, setSelectedStudentsForClass] = useState([]);
+  const [selectedTeachersForClass, setSelectedTeachersForClass] = useState([]);
+  const [currentClassId, setCurrentClassId] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const isMobile = windowWidth < 768;
 
-  // بارگذاری دیتاهای پیش‌فرض
+  // ========== بارگذاری ==========
   useEffect(() => {
-    loadDefaultData();
+    loadAllData();
   }, []);
 
-  const loadDefaultData = () => {
-    // مدارس پیش‌فرض
-    const defaultSchools = [
-      { id: 1, name: 'مدرسه الف', city: 'تهران', classes: [
-        { id: 101, name: 'پایه چهارم', teacherId: 201, students: [301, 302] },
-        { id: 102, name: 'پایه پنجم', teacherId: null, students: [] }
-      ]},
-      { id: 2, name: 'مدرسه ب', city: 'اصفهان', classes: [
-        { id: 103, name: 'پایه سوم', teacherId: 202, students: [303] }
-      ]},
-      { id: 3, name: 'مدرسه ج', city: 'شیراز', classes: [] }
-    ];
-    
-    // معلمان پیش‌فرض
-    const defaultTeachers = [
-      { id: 201, name: 'خانم معلمی', username: 'teacher1', schoolId: 1, classId: 101 },
-      { id: 202, name: 'آقای رضایی', username: 'teacher2', schoolId: 2, classId: 103 },
-      { id: 203, name: 'خانم کریمی', username: 'teacher3', schoolId: null, classId: null },
-      { id: 204, name: 'آقای محمدی', username: 'teacher4', schoolId: null, classId: null },
-      { id: 205, name: 'خانم حسینی', username: 'teacher5', schoolId: null, classId: null }
-    ];
-    
-    // دانش‌آموزان پیش‌فرض
-    const defaultStudents = [
-      { id: 301, name: 'علی حسینی', username: 'student1', schoolId: 1, classId: 101, xp: 45 },
-      { id: 302, name: 'سارا محمدی', username: 'student2', schoolId: 1, classId: 101, xp: 78 },
-      { id: 303, name: 'رضا کریمی', username: 'student3', schoolId: 2, classId: 103, xp: 32 },
-      { id: 304, name: 'زهرا احمدی', username: 'student4', schoolId: null, classId: null, xp: 0 },
-      { id: 305, name: 'محمد رضایی', username: 'student5', schoolId: null, classId: null, xp: 0 },
-      { id: 306, name: 'فاطمه کاظمی', username: 'student6', schoolId: null, classId: null, xp: 0 },
-      { id: 307, name: 'حسین مرادی', username: 'student7', schoolId: null, classId: null, xp: 0 }
-    ];
-    
-    // ویدیوهای پیش‌فرض
-    const defaultVideos = [
-      { id: 1, title: 'کاپیتان', category: 'داستانی', duration: '05:30', xp: 30 },
-      { id: 2, title: 'شبیه ساز', category: 'آموزشی', duration: '07:15', xp: 35 },
-      { id: 3, title: 'واده آخر', category: 'داستانی', duration: '06:45', xp: 32 },
-      { id: 4, title: 'ریاضی پایه چهارم', category: 'آموزشی', duration: '12:30', xp: 45 },
-      { id: 5, title: 'علوم تجربی', category: 'علمی', duration: '15:00', xp: 50 }
-    ];
-    
-    // پادکست‌های پیش‌فرض
-    const defaultPodcasts = [
-      { id: 1, title: 'داستان شب بخیر', category: 'داستانی', duration: '12:30', xp: 25 },
-      { id: 2, title: 'ریاضی شیرین', category: 'آموزشی', duration: '10:20', xp: 35 },
-      { id: 3, title: 'قصه‌های کهن', category: 'داستانی', duration: '15:00', xp: 30 },
-      { id: 4, title: 'انگیزشی برای دانش‌آموزان', category: 'انگیزشی', duration: '08:45', xp: 40 }
-    ];
+  useEffect(() => {
+    if (schools.length > 0) loadAllUsers();
+  }, [schools]);
 
-    const savedSchools = localStorage.getItem('luko_schools');
-    if (savedSchools) {
-      setSchools(JSON.parse(savedSchools));
-    } else {
-      setSchools(defaultSchools);
-      localStorage.setItem('luko_schools', JSON.stringify(defaultSchools));
+  const loadAllData = async () => {
+    setLoading(true);
+    try {
+      await loadSchools();
+      await loadVideos();
+      await loadPodcasts();
+    } catch (error) {
+      console.error('Error loading data:', error);
     }
-
-    const savedTeachers = localStorage.getItem('luko_teachers');
-    if (savedTeachers) {
-      setTeachersList(JSON.parse(savedTeachers));
-    } else {
-      setTeachersList(defaultTeachers);
-      localStorage.setItem('luko_teachers', JSON.stringify(defaultTeachers));
-    }
-
-    const savedStudents = localStorage.getItem('luko_students');
-    if (savedStudents) {
-      setStudentsList(JSON.parse(savedStudents));
-    } else {
-      setStudentsList(defaultStudents);
-      localStorage.setItem('luko_students', JSON.stringify(defaultStudents));
-    }
-
-    const savedVideos = localStorage.getItem('luko_videos');
-    if (savedVideos) {
-      setVideos(JSON.parse(savedVideos));
-    } else {
-      setVideos(defaultVideos);
-      localStorage.setItem('luko_videos', JSON.stringify(defaultVideos));
-    }
-
-    const savedPodcasts = localStorage.getItem('luko_podcasts');
-    if (savedPodcasts) {
-      setPodcasts(JSON.parse(savedPodcasts));
-    } else {
-      setPodcasts(defaultPodcasts);
-      localStorage.setItem('luko_podcasts', JSON.stringify(defaultPodcasts));
-    }
+    setLoading(false);
   };
 
-  const saveSchools = (newSchools) => {
-    setSchools(newSchools);
-    localStorage.setItem('luko_schools', JSON.stringify(newSchools));
-  };
-
-  const saveTeachers = (newTeachers) => {
-    setTeachersList(newTeachers);
-    localStorage.setItem('luko_teachers', JSON.stringify(newTeachers));
-  };
-
-  const saveStudents = (newStudents) => {
-    setStudentsList(newStudents);
-    localStorage.setItem('luko_students', JSON.stringify(newStudents));
-  };
-
-  const saveVideos = (newVideos) => {
-    setVideos(newVideos);
-    localStorage.setItem('luko_videos', JSON.stringify(newVideos));
-  };
-
-  const savePodcasts = (newPodcasts) => {
-    setPodcasts(newPodcasts);
-    localStorage.setItem('luko_podcasts', JSON.stringify(newPodcasts));
-  };
-
-  // ========== مدیریت مدارس ==========
-  const addSchool = () => {
-    if (!newSchoolName.trim()) {
-      alert('لطفاً نام مدرسه را وارد کنید');
-      return;
-    }
-    const newSchool = { 
-      id: Date.now(), 
-      name: newSchoolName, 
-      city: newSchoolCity || 'نامشخص', 
-      classes: [] 
-    };
-    saveSchools([...schools, newSchool]);
-    setNewSchoolName('');
-    setNewSchoolCity('');
-    setShowAddSchoolModal(false);
-  };
-
-  const deleteSchool = (id) => {
-    if (window.confirm('آیا از حذف این مدرسه مطمئن هستید؟')) {
-      saveSchools(schools.filter(s => s.id !== id));
-    }
-  };
-
-  // ========== مدیریت کلاس‌ها ==========
-  const addClass = () => {
-    if (!selectedSchool) {
-      alert('لطفاً ابتدا مدرسه را انتخاب کنید');
-      return;
-    }
-    if (!newClassName.trim()) {
-      alert('لطفاً نام کلاس را وارد کنید');
-      return;
-    }
-    
-    const newClass = { id: Date.now(), name: newClassName, teacherId: null, students: [] };
-    const updatedSchools = schools.map(s => {
-      if (s.id === parseInt(selectedSchool)) {
-        return { ...s, classes: [...s.classes, newClass] };
+  // ========== API Calls ==========
+  
+  // ----- Schools -----
+  const loadSchools = async () => {
+    try {
+      const res = await apiClient.get('v1/schools');
+      if (res.data.success) {
+        const data = res.data.data || [];
+        setSchools(data);
+        for (const school of data) {
+          await loadClassesForSchool(school.id);
+        }
       }
-      return s;
-    });
-    saveSchools(updatedSchools);
-    setNewClassName('');
-    setShowAddClassModal(false);
+    } catch (error) {
+      console.error('Error loading schools:', error);
+    }
   };
 
-  const deleteClass = (schoolId, classId) => {
-    const updatedSchools = schools.map(s => {
-      if (s.id === schoolId) {
-        return { ...s, classes: s.classes.filter(c => c.id !== classId) };
+  const loadClassesForSchool = async (schoolId) => {
+    try {
+      const res = await apiClient.get(`v1/schools/${schoolId}/classes`);
+      if (res.data.success) {
+        const data = res.data.data?.classes || [];
+        setClasses(prev => ({ ...prev, [schoolId]: data }));
       }
-      return s;
-    });
-    saveSchools(updatedSchools);
+    } catch (error) {
+      setClasses(prev => ({ ...prev, [schoolId]: [] }));
+    }
   };
 
-  // ========== مدیریت معلمان ==========
-  const addTeacher = () => {
-    if (!newTeacherName.trim()) {
-      alert('لطفاً نام معلم را وارد کنید');
-      return;
-    }
-    if (!newTeacherUsername.trim()) {
-      alert('لطفاً نام کاربری معلم را وارد کنید');
-      return;
-    }
-    
-    const newTeacher = { 
-      id: Date.now(), 
-      name: newTeacherName, 
-      username: newTeacherUsername,
-      schoolId: selectedSchool ? parseInt(selectedSchool) : null,
-      classId: selectedClass ? parseInt(selectedClass) : null
-    };
-    saveTeachers([...teachersList, newTeacher]);
-    setNewTeacherName('');
-    setNewTeacherUsername('');
-    setShowAddTeacherModal(false);
-  };
-
-  const assignTeacherToClass = (teacherId, schoolId, classId) => {
-    const updatedTeachers = teachersList.map(t => {
-      if (t.id === teacherId) {
-        return { ...t, schoolId, classId };
+  const createSchool = async (data) => {
+    try {
+      const res = await apiClient.post('v1/schools', data);
+      if (res.data.success) {
+        await loadSchools();
+        return true;
       }
-      return t;
-    });
-    saveTeachers(updatedTeachers);
-    
-    const updatedSchools = schools.map(s => {
-      if (s.id === schoolId) {
-        return {
-          ...s,
-          classes: s.classes.map(c => 
-            c.id === classId ? { ...c, teacherId } : c
-          )
-        };
+      return false;
+    } catch (error) {
+      alert(error.response?.data?.message || 'خطا در ایجاد مدرسه');
+      return false;
+    }
+  };
+
+  const deleteSchool = async (id) => {
+    if (!window.confirm('آیا از حذف این مدرسه مطمئن هستید؟')) return;
+    try {
+      await apiClient.delete(`v1/schools/${id}`);
+      await loadSchools();
+    } catch (error) {
+      alert(error.response?.data?.message || 'خطا در حذف مدرسه');
+    }
+  };
+
+  // ----- Users -----
+  const loadAllUsers = async () => {
+    try {
+      let allUsers = [];
+      for (const school of schools) {
+        try {
+          const res = await apiClient.get(`v1/schools/${school.id}/users`);
+          if (res.data.success) {
+            const data = res.data.data?.users || res.data.data || [];
+            const usersWithSchool = data.map(u => ({
+              ...u,
+              schoolId: school.id,
+              firstName: u.first_name || u.firstName || '',
+              lastName: u.last_name || u.lastName || '',
+              role: u.role || '',
+              username: u.username || '',
+              classId: u.class_id || u.classId || null,
+              plainPassword: u.plain_password || u.plainPassword || '********'
+            }));
+            allUsers = [...allUsers, ...usersWithSchool];
+          }
+        } catch (e) {}
       }
-      return s;
-    });
-    saveSchools(updatedSchools);
-  };
-
-  const removeTeacher = (teacherId) => {
-    if (window.confirm('آیا از حذف این معلم مطمئن هستید؟')) {
-      saveTeachers(teachersList.filter(t => t.id !== teacherId));
+      const unique = allUsers.filter((u, i, self) => i === self.findIndex(t => t.id === u.id));
+      setUsers(unique);
+      return unique;
+    } catch (error) {
+      console.error('Error loading users:', error);
+      return [];
     }
   };
 
-  // ========== مدیریت دانش‌آموزان ==========
-  const addStudentsToClass = () => {
-    if (!selectedSchool || !selectedClass) {
-      alert('لطفاً مدرسه و کلاس را انتخاب کنید');
-      return;
+  // ====== دریافت پسورد کاربر ======
+  const getUserPassword = async (userId) => {
+    try {
+      const res = await apiClient.get(`v1/users/${userId}/password`);
+      if (res.data.success) {
+        const data = res.data.data || {};
+        setSelectedUser({
+          ...data,
+          username: data.username || '',
+          password: data.password || '********'
+        });
+        setModals(prev => ({ ...prev, userPassword: true }));
+      }
+    } catch (error) {
+      alert(error.response?.data?.message || 'خطا در دریافت پسورد');
     }
-    if (selectedStudents.length === 0) {
+  };
+
+  const createUser = async (data) => {
+    try {
+      const schoolId = data.schoolId || schools[0]?.id || 1;
+      const payload = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role
+      };
+      
+      if (data.username) {
+        payload.username = data.username;
+      } else {
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        payload.username = `${data.firstName.toLowerCase()}_${randomNum}`;
+      }
+      
+      if (data.password) {
+        payload.password = data.password;
+      } else {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let password = '';
+        for (let i = 0; i < 8; i++) {
+          password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        payload.password = password;
+      }
+      
+      if (data.role === 'student') {
+        if (!data.classId) {
+          alert('برای دانش‌آموز، انتخاب کلاس الزامی است');
+          return false;
+        }
+        payload.classId = data.classId;
+      } else if (data.classId) {
+        payload.classId = data.classId;
+      }
+
+      const res = await apiClient.post(`v1/schools/${schoolId}/users`, payload);
+      if (res.data.success) {
+        await loadAllUsers();
+        alert(`✅ کاربر با موفقیت ایجاد شد!\n\nنام کاربری: ${payload.username}\nرمز عبور: ${payload.password}`);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      alert(error.response?.data?.message || error.message || 'خطا در ایجاد کاربر');
+      return false;
+    }
+  };
+
+  const deleteUser = async (id) => {
+    if (!window.confirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
+    try {
+      await apiClient.delete(`v1/users/${id}`);
+      await loadAllUsers();
+    } catch (error) {
+      alert(error.response?.data?.message || 'خطا در حذف کاربر');
+    }
+  };
+
+  // ----- Classes -----
+  const createClass = async (data) => {
+    try {
+      const res = await apiClient.post(`v1/schools/${data.schoolId}/classes`, {
+        name: data.name,
+        grade: data.grade,
+        academicYear: data.academicYear
+      });
+      if (res.data.success) {
+        await loadClassesForSchool(data.schoolId);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      alert(error.response?.data?.message || 'خطا در ایجاد کلاس');
+      return false;
+    }
+  };
+
+  const deleteClass = async (classId, schoolId) => {
+    if (!window.confirm('آیا از حذف این کلاس مطمئن هستید؟')) return;
+    try {
+      await apiClient.delete(`v1/classes/${classId}`);
+      await loadClassesForSchool(schoolId);
+    } catch (error) {
+      alert(error.response?.data?.message || 'خطا در حذف کلاس');
+    }
+  };
+
+  // ========== افزودن دانش‌آموز به کلاس ==========
+  const addStudentsToClass = async () => {
+    if (!currentClassId || selectedStudentsForClass.length === 0) {
       alert('لطفاً حداقل یک دانش‌آموز انتخاب کنید');
       return;
     }
 
-    const updatedSchools = schools.map(s => {
-      if (s.id === parseInt(selectedSchool)) {
-        return {
-          ...s,
-          classes: s.classes.map(c => {
-            if (c.id === parseInt(selectedClass)) {
-              return { ...c, students: [...new Set([...c.students, ...selectedStudents])] };
-            }
-            return c;
-          })
-        };
+    try {
+      for (const studentId of selectedStudentsForClass) {
+        await apiClient.post(`v1/classes/${currentClassId}/students`, {
+          studentId: studentId
+        });
       }
-      return s;
-    });
-    saveSchools(updatedSchools);
+      alert('دانش‌آموزان با موفقیت به کلاس اضافه شدند');
+      setSelectedStudentsForClass([]);
+      setModals(prev => ({ ...prev, addStudentToClass: false }));
+      
+      setLoading(true);
+      await loadAllUsers();
+      await loadClassesForSchool(selectedSchool);
+      setLoading(false);
+      
+    } catch (error) {
+      console.error('Error adding students to class:', error);
+      alert(error.response?.data?.message || 'خطا در افزودن دانش‌آموزان به کلاس');
+    }
+  };
 
-    const updatedStudents = studentsList.map(s => {
-      if (selectedStudents.includes(s.id)) {
-        return { ...s, schoolId: parseInt(selectedSchool), classId: parseInt(selectedClass) };
+  // ========== افزودن معلم به کلاس ==========
+  const addTeachersToClass = async () => {
+    if (!currentClassId || selectedTeachersForClass.length === 0) {
+      alert('لطفاً حداقل یک معلم انتخاب کنید');
+      return;
+    }
+
+    try {
+      for (const teacherId of selectedTeachersForClass) {
+        await apiClient.post(`v1/classes/${currentClassId}/teachers`, {
+          teacherId: teacherId
+        });
       }
-      return s;
+      alert('معلمان با موفقیت به کلاس اضافه شدند');
+      setSelectedTeachersForClass([]);
+      setModals(prev => ({ ...prev, addTeacherToClass: false }));
+      
+      setLoading(true);
+      await loadAllUsers();
+      await loadClassesForSchool(selectedSchool);
+      setLoading(false);
+      
+    } catch (error) {
+      console.error('Error adding teachers to class:', error);
+      alert(error.response?.data?.message || 'خطا در افزودن معلمان به کلاس');
+    }
+  };
+
+  // ----- Videos -----
+  const loadVideos = async () => {
+    try {
+      const res = await apiClient.get('v1/videos');
+      setVideos(res.data.success ? res.data.data || [] : []);
+    } catch (error) {
+      setVideos([]);
+    }
+  };
+
+  const deleteVideo = async (id) => {
+    if (!window.confirm('آیا از حذف این ویدیو مطمئن هستید؟')) return;
+    try {
+      await apiClient.delete(`v1/videos/${id}`);
+      await loadVideos();
+    } catch (error) {
+      alert(error.response?.data?.message || 'خطا در حذف ویدیو');
+    }
+  };
+
+  // ----- Podcasts -----
+  const loadPodcasts = async () => {
+    try {
+      const res = await apiClient.get('v1/podcasts');
+      setPodcasts(res.data.success ? res.data.data || [] : []);
+    } catch (error) {
+      setPodcasts([]);
+    }
+  };
+
+  const deletePodcast = async (id) => {
+    if (!window.confirm('آیا از حذف این پادکست مطمئن هستید؟')) return;
+    try {
+      await apiClient.delete(`v1/podcasts/${id}`);
+      await loadPodcasts();
+    } catch (error) {
+      alert(error.response?.data?.message || 'خطا در حذف پادکست');
+    }
+  };
+
+  // ========== مدیریت فرم‌ها ==========
+
+  const handleFormChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const resetForm = () => {
+    setForm({
+      schoolName: '', schoolCode: '', schoolAddress: '', schoolPhone: '', schoolEmail: '',
+      className: '', classGrade: '', classAcademicYear: '',
+      teacherName: '', teacherUsername: '', teacherPassword: '',
+      studentName: '', studentLastName: '', studentUsername: '', studentPassword: '',
+      adminName: '', adminLastName: '', adminUsername: '', adminPassword: ''
     });
-    saveStudents(updatedStudents);
-
-    setSelectedStudents([]);
-    setShowAddStudentModal(false);
   };
 
-  const removeStudentFromClass = (studentId, schoolId, classId) => {
-    const updatedSchools = schools.map(s => {
-      if (s.id === schoolId) {
-        return {
-          ...s,
-          classes: s.classes.map(c => {
-            if (c.id === classId) {
-              return { ...c, students: c.students.filter(sId => sId !== studentId) };
-            }
-            return c;
-          })
-        };
-      }
-      return s;
+  const addSchool = async () => {
+    if (!form.schoolName.trim() || !form.schoolCode.trim()) {
+      alert('لطفاً نام و کد مدرسه را وارد کنید');
+      return;
+    }
+    const success = await createSchool({
+      name: form.schoolName,
+      code: form.schoolCode,
+      address: form.schoolAddress || '',
+      phone: form.schoolPhone || '',
+      email: form.schoolEmail || ''
     });
-    saveSchools(updatedSchools);
-  };
-
-  // ========== مدیریت ویدیوها ==========
-  const addVideo = (videoData) => {
-    if (editingItem) {
-      const updated = videos.map(v => v.id === editingItem.id ? { ...videoData, id: editingItem.id } : v);
-      saveVideos(updated);
-      setEditingItem(null);
-    } else {
-      const newVideo = { id: Date.now(), ...videoData };
-      saveVideos([...videos, newVideo]);
-    }
-    setShowVideoModal(false);
-  };
-
-  const deleteVideo = (id) => {
-    if (window.confirm('آیا از حذف این ویدیو مطمئن هستید؟')) {
-      saveVideos(videos.filter(v => v.id !== id));
+    if (success) {
+      resetForm();
+      setModals(prev => ({ ...prev, school: false }));
     }
   };
 
-  // ========== مدیریت پادکست‌ها ==========
-  const addPodcast = (podcastData) => {
-    if (editingItem) {
-      const updated = podcasts.map(p => p.id === editingItem.id ? { ...podcastData, id: editingItem.id } : p);
-      savePodcasts(updated);
-      setEditingItem(null);
-    } else {
-      const newPodcast = { id: Date.now(), ...podcastData };
-      savePodcasts([...podcasts, newPodcast]);
+  const addClass = async () => {
+    if (!selectedSchool || !form.className.trim() || !form.classGrade.trim() || !form.classAcademicYear.trim()) {
+      alert('لطفاً همه فیلدها را کامل کنید');
+      return;
     }
-    setShowPodcastModal(false);
+    const success = await createClass({
+      schoolId: selectedSchool,
+      name: form.className,
+      grade: form.classGrade,
+      academicYear: form.classAcademicYear
+    });
+    if (success) {
+      resetForm();
+      setModals(prev => ({ ...prev, class: false }));
+    }
   };
 
-  const deletePodcast = (id) => {
-    if (window.confirm('آیا از حذف این پادکست مطمئن هستید؟')) {
-      savePodcasts(podcasts.filter(p => p.id !== id));
+  const addTeacher = async () => {
+    if (!form.teacherName.trim()) {
+      alert('لطفاً نام معلم را وارد کنید');
+      return;
     }
+    const nameParts = form.teacherName.trim().split(' ');
+    const success = await createUser({
+      firstName: nameParts[0] || form.teacherName,
+      lastName: nameParts.slice(1).join(' ') || 'معلم',
+      role: 'teacher',
+      username: form.teacherUsername.trim() || '',
+      password: form.teacherPassword.trim() || '',
+      schoolId: selectedSchool || schools[0]?.id || 1
+    });
+    if (success) {
+      resetForm();
+      setModals(prev => ({ ...prev, teacher: false }));
+    }
+  };
+
+  const addStudent = async () => {
+    if (!form.studentName.trim() || !form.studentLastName.trim()) {
+      alert('لطفاً نام و نام خانوادگی را وارد کنید');
+      return;
+    }
+    if (!selectedClass) {
+      alert('لطفاً کلاس را انتخاب کنید');
+      return;
+    }
+    const success = await createUser({
+      firstName: form.studentName.trim(),
+      lastName: form.studentLastName.trim(),
+      role: 'student',
+      username: form.studentUsername.trim() || '',
+      password: form.studentPassword.trim() || '',
+      schoolId: selectedSchool || schools[0]?.id || 1,
+      classId: selectedClass
+    });
+    if (success) {
+      resetForm();
+      setModals(prev => ({ ...prev, student: false }));
+      setSelectedClass(null);
+    }
+  };
+
+  const addAdmin = async () => {
+    if (!form.adminName.trim() || !form.adminLastName.trim()) {
+      alert('لطفاً نام و نام خانوادگی را وارد کنید');
+      return;
+    }
+    const success = await createUser({
+      firstName: form.adminName.trim(),
+      lastName: form.adminLastName.trim(),
+      role: 'school_admin',
+      username: form.adminUsername.trim() || '',
+      password: form.adminPassword.trim() || '',
+      schoolId: selectedSchool || schools[0]?.id || 1
+    });
+    if (success) {
+      resetForm();
+      setModals(prev => ({ ...prev, admin: false }));
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   const colors = {
@@ -401,459 +529,527 @@ const AdminPanel = () => {
     sidebarText: '#FFFFFF'
   };
 
-  // تب‌های سایدبار
-  const sidebarTabs = [
+  const tabs = [
     { id: 'dashboard', label: 'داشبورد', icon: HiOutlineChartBar },
     { id: 'schools', label: 'مدارس', icon: HiOutlineOfficeBuilding },
+    { id: 'users', label: 'کاربران', icon: HiOutlineUsers },
     { id: 'videos', label: 'ویدیوها', icon: HiOutlineVideoCamera },
     { id: 'podcasts', label: 'پادکست‌ها', icon: HiOutlineMicrophone },
     { id: 'tickets', label: 'تیکت‌ها', icon: HiOutlineTicket }
   ];
 
-  // نویگیشن موبایل
-  const mobileNavItems = [
-    { id: 'schools', label: 'مدارس', icon: HiOutlineOfficeBuilding },
-    { id: 'dashboard', label: 'داشبورد', icon: HiOutlineChartBar },
-    { id: 'videos', label: 'ویدیوها', icon: HiOutlineVideoCamera },
-    { id: 'tickets', label: 'تیکت‌ها', icon: HiOutlineTicket },
-    { id: 'podcasts', label: 'پادکست‌ها', icon: HiOutlineMicrophone }
-  ];
-
-  const getTeacherName = (teacherId) => {
-    const teacher = teachersList.find(t => t.id === teacherId);
-    return teacher ? teacher.name : 'تعیین نشده';
-  };
-
-  const getStudentName = (studentId) => {
-    const student = studentsList.find(s => s.id === studentId);
-    return student ? student.name : 'نامشخص';
-  };
-
-  const schoolOptions = schools.map(s => ({ value: s.id, label: `${s.name} - ${s.city}` }));
-  const selectedSchoolData = schools.find(s => s.id === parseInt(selectedSchool));
-  const classOptions = selectedSchoolData?.classes.map(c => ({ value: c.id, label: c.name })) || [];
-  const availableStudents = studentsList.filter(s => !s.classId);
-
-  const totalStudents = studentsList.length;
-  const totalTeachers = teachersList.length;
+  const totalStudents = users.filter(u => u.role === 'student').length;
+  const totalTeachers = users.filter(u => u.role === 'teacher').length;
+  const totalAdmins = users.filter(u => u.role === 'school_admin' || u.role === 'admin' || u.role === 'team_admin').length;
   const totalSchools = schools.length;
   const totalContent = videos.length + podcasts.length;
+  const totalClasses = Object.values(classes).reduce((acc, curr) => acc + (curr?.length || 0), 0);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: colors.bg }}>
+        <div style={{ width: '40px', height: '40px', border: `3px solid ${colors.primary}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      </div>
+    );
+  }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: colors.bg,
-      fontFamily: "'Shoor', 'Shoor Rounded', sans-serif",
-      direction: 'rtl',
-      display: 'flex',
-      flexDirection: isMobile ? 'column' : 'row'
-    }}>
-      
-      {/* سایدبار دسکتاپ */}
+    <div style={{ minHeight: '100vh', background: colors.bg, direction: 'rtl', display: 'flex', flexDirection: isMobile ? 'column' : 'row' }}>
+
+      {/* ========== سایدبار ========== */}
       {!isMobile && (
-        <div style={{
-          width: '260px',
-          background: colors.sidebarBg,
-          position: 'fixed',
-          right: 0,
-          top: 0,
-          bottom: 0,
-          boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
-          display: 'flex',
-          flexDirection: 'column',
-          zIndex: 100
-        }}>
+        <div style={{ width: '260px', background: colors.sidebarBg, position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 100, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
             <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'white' }}>لوکو</h1>
             <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>پنل مدیریت</p>
           </div>
-          
           <div style={{ flex: 1, padding: '16px 0' }}>
-            {sidebarTabs.map(tab => {
+            {tabs.map(tab => {
               const Icon = tab.icon;
-              const isActive = activeAdminTab === tab.id;
+              const isActive = activeTab === tab.id;
               return (
-                <div
-                  key={tab.id}
-                  onClick={() => setActiveAdminTab(tab.id)}
-                  style={{
-                    padding: '12px 24px',
-                    margin: '4px 12px',
-                    borderRadius: '12px',
-                    background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
+                <div key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: '12px 24px', margin: '4px 12px', borderRadius: '12px', background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <Icon size={20} color={isActive ? colors.primary : 'rgba(255,255,255,0.6)'} />
-                  <span style={{ color: isActive ? 'white' : 'rgba(255,255,255,0.7)', fontSize: '14px' }}>
-                    {tab.label}
-                  </span>
+                  <span style={{ color: isActive ? 'white' : 'rgba(255,255,255,0.7)', fontSize: '14px' }}>{tab.label}</span>
                 </div>
               );
             })}
           </div>
-          
           <div style={{ padding: '20px 24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                background: colors.primary,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: colors.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <HiOutlineUser size={20} color="white" />
               </div>
               <div>
-                <p style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>{user?.name || user?.username || 'مدیر'}</p>
+                <p style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>{user?.firstName || user?.username || 'مدیر'}</p>
                 <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}>مدیر تیم</p>
               </div>
             </div>
-            <button
-              onClick={() => { logout(); navigate('/login'); }}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: 'rgba(255,255,255,0.1)',
-                border: 'none',
-                borderRadius: '12px',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '13px'
-              }}
-            >
-              خروج
-            </button>
+            <button onClick={handleLogout} style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontSize: '13px' }}>خروج</button>
           </div>
         </div>
       )}
 
-      {/* محتوای اصلی */}
-      <div style={{
-        flex: 1,
-        marginRight: !isMobile ? '260px' : '0',
-        padding: isMobile ? '16px' : '24px',
-        paddingBottom: isMobile ? '70px' : '24px'
-      }}>
-        
+      {/* ========== محتوای اصلی ========== */}
+      <div style={{ flex: 1, marginRight: !isMobile ? '260px' : '0', padding: isMobile ? '16px' : '24px', paddingBottom: isMobile ? '70px' : '24px' }}>
+
         {/* هدر موبایل */}
         {isMobile && (
-          <div style={{
-            background: colors.cardBg,
-            padding: '12px 16px',
-            borderRadius: '16px',
-            marginBottom: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-          }}>
+          <div style={{ background: colors.cardBg, padding: '12px 16px', borderRadius: '16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <HiOutlineUser size={20} color="white" />
               </div>
               <div>
-                <p style={{ fontSize: '14px', fontWeight: '600' }}>{user?.name || user?.username || 'مدیر'}</p>
+                <p style={{ fontSize: '14px', fontWeight: '600' }}>{user?.firstName || user?.username || 'مدیر'}</p>
                 <p style={{ fontSize: '10px', color: colors.textSecondary }}>پنل مدیریت</p>
               </div>
             </div>
-            <button
-              onClick={() => { logout(); navigate('/login'); }}
-              style={{
-                background: '#F44336',
-                border: 'none',
-                borderRadius: '20px',
-                padding: '6px 16px',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              خروج
-            </button>
+            <button onClick={handleLogout} style={{ background: '#F44336', border: 'none', borderRadius: '20px', padding: '6px 16px', color: 'white', cursor: 'pointer', fontSize: '12px' }}>خروج</button>
           </div>
         )}
 
-        {/* داشبورد */}
-        {activeAdminTab === 'dashboard' && (
+        {/* ====== داشبورد ====== */}
+        {activeTab === 'dashboard' && (
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px' }}>داشبورد</h2>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-              gap: '16px',
-              marginBottom: '24px'
-            }}>
-              <div style={{ background: colors.cardBg, borderRadius: '16px', padding: '16px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <HiOutlineOfficeBuilding size={24} color={colors.primary} />
-                <p style={{ fontSize: '24px', fontWeight: '700', marginTop: '8px' }}>{totalSchools}</p>
-                <p style={{ fontSize: '12px', color: colors.textSecondary }}>مدارس</p>
-              </div>
-              <div style={{ background: colors.cardBg, borderRadius: '16px', padding: '16px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <HiOutlineUser size={24} color={colors.primary} />
-                <p style={{ fontSize: '24px', fontWeight: '700', marginTop: '8px' }}>{totalTeachers}</p>
-                <p style={{ fontSize: '12px', color: colors.textSecondary }}>معلمان</p>
-              </div>
-              <div style={{ background: colors.cardBg, borderRadius: '16px', padding: '16px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <HiOutlineUsers size={24} color={colors.primary} />
-                <p style={{ fontSize: '24px', fontWeight: '700', marginTop: '8px' }}>{totalStudents}</p>
-                <p style={{ fontSize: '12px', color: colors.textSecondary }}>دانش‌آموزان</p>
-              </div>
-              <div style={{ background: colors.cardBg, borderRadius: '16px', padding: '16px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <HiOutlineVideoCamera size={24} color={colors.primary} />
-                <p style={{ fontSize: '24px', fontWeight: '700', marginTop: '8px' }}>{totalContent}</p>
-                <p style={{ fontSize: '12px', color: colors.textSecondary }}>محتوای آموزشی</p>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+              <DashboardCard icon={<HiOutlineOfficeBuilding size={24} />} count={totalSchools} label="مدارس" colors={colors} />
+              <DashboardCard icon={<HiOutlineAcademicCap size={24} />} count={totalTeachers} label="معلمان" colors={colors} />
+              <DashboardCard icon={<HiOutlineUsers size={24} />} count={totalStudents} label="دانش‌آموزان" colors={colors} />
+              <DashboardCard icon={<HiOutlineVideoCamera size={24} />} count={totalContent} label="محتوای آموزشی" colors={colors} />
             </div>
-            
-            <div style={{ background: colors.cardBg, borderRadius: '16px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>راهنمای سریع</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: colors.bg, borderRadius: '12px' }}>
-                  <HiOutlineOfficeBuilding size={18} color={colors.primary} />
-                  <div><p style={{ fontWeight: '600', fontSize: '13px' }}>مدیریت مدارس</p><p style={{ fontSize: '11px', color: colors.textSecondary }}>مدارس، کلاس‌ها، معلمان و دانش‌آموزان</p></div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: colors.bg, borderRadius: '12px' }}>
-                  <HiOutlineVideoCamera size={18} color={colors.primary} />
-                  <div><p style={{ fontWeight: '600', fontSize: '13px' }}>مدیریت ویدیوها</p><p style={{ fontSize: '11px', color: colors.textSecondary }}>ویدیوهای جدید اضافه یا حذف کنید</p></div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: colors.bg, borderRadius: '12px' }}>
-                  <HiOutlineMicrophone size={18} color={colors.primary} />
-                  <div><p style={{ fontWeight: '600', fontSize: '13px' }}>مدیریت پادکست‌ها</p><p style={{ fontSize: '11px', color: colors.textSecondary }}>پادکست‌های جدید اضافه یا حذف کنید</p></div>
-                </div>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
+              <DashboardCard icon={<HiOutlineUserAdd size={20} />} count={totalAdmins} label="مدیران مدرسه" colors={colors} />
+              <DashboardCard icon={<HiOutlineAcademicCap size={20} />} count={totalClasses} label="کلاس‌ها" colors={colors} />
+              <DashboardCard icon={<HiOutlineUsers size={20} />} count={users.length} label="کل کاربران" colors={colors} />
             </div>
           </div>
         )}
 
-        {/* مدارس */}
-        {activeAdminTab === 'schools' && (
+        {/* ====== مدارس ====== */}
+        {activeTab === 'schools' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '600' }}>لیست مدارس</h2>
-              <button onClick={() => setShowAddSchoolModal(true)} style={{ background: colors.primary, border: 'none', borderRadius: '10px', padding: '8px 16px', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+              <button onClick={() => setModals(prev => ({ ...prev, school: true }))} style={buttonStyle(colors.primary)}>
                 <HiOutlinePlus size={14} /> مدرسه جدید
               </button>
             </div>
 
-            {schools.map(school => (
-              <div key={school.id} style={{ background: colors.cardBg, borderRadius: '16px', marginBottom: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ padding: '14px 16px', background: colors.primary, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div><h3 style={{ fontSize: '16px', fontWeight: '700', color: 'white' }}>{school.name}</h3><p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.9)' }}>{school.city}</p></div>
-                  <button onClick={() => deleteSchool(school.id)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', color: 'white' }}><HiOutlineTrash size={14} /></button>
-                </div>
-                
-                <div style={{ padding: '16px' }}>
-                  {/* کلاس‌ها */}
-                  <div style={{ marginBottom: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <h4 style={{ fontSize: '14px', fontWeight: '600' }}>کلاس‌ها</h4>
-                      <button onClick={() => { setSelectedSchool(school.id); setShowAddClassModal(true); }} style={{ background: 'transparent', border: 'none', color: colors.primary, cursor: 'pointer', fontSize: '12px' }}>+ اضافه کردن کلاس</button>
+            {schools.length === 0 ? (
+              <EmptyState message="هیچ مدرسه‌ای ثبت نشده است" />
+            ) : (
+              schools.map(school => {
+                const isExpanded = expandedSchools[school.id] || false;
+                const schoolClasses = Array.isArray(classes[school.id]) ? classes[school.id] : [];
+                const schoolTeachers = users.filter(u => u.schoolId === school.id && u.role === 'teacher');
+                const schoolStudents = users.filter(u => u.schoolId === school.id && u.role === 'student');
+
+                return (
+                  <div key={school.id} style={cardStyle(isExpanded, colors)}>
+                    <div onClick={() => setExpandedSchools(prev => ({ ...prev, [school.id]: !prev[school.id] }))} style={headerStyle(isExpanded, colors)}>
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', color: isExpanded ? 'white' : colors.text }}>{school.name}</h3>
+                        <p style={{ fontSize: '11px', color: isExpanded ? 'rgba(255,255,255,0.9)' : colors.textSecondary }}>کد: {school.code} | {school.address || 'آدرس ثبت نشده'}</p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '12px', color: isExpanded ? 'white' : colors.textSecondary }}>{schoolClasses.length} کلاس | {schoolStudents.length} دانش‌آموز</span>
+                        <button onClick={(e) => { e.stopPropagation(); deleteSchool(school.id); }} style={deleteButtonStyle(isExpanded)}>
+                          <HiOutlineTrash size={14} />
+                        </button>
+                        {isExpanded ? <HiOutlineChevronDown size={20} color="white" /> : <HiOutlineChevronLeft size={20} color={colors.text} />}
+                      </div>
                     </div>
-                    
-                    {school.classes.length === 0 ? (
-                      <p style={{ fontSize: '12px', color: colors.textSecondary, textAlign: 'center', padding: '12px' }}>هیچ کلاسی تعریف نشده است</p>
-                    ) : (
-                      school.classes.map(cls => (
-                        <div key={cls.id} style={{ background: colors.bg, borderRadius: '12px', padding: '12px', marginBottom: '12px', borderRight: `3px solid ${colors.primary}` }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <h5 style={{ fontSize: '14px', fontWeight: '600' }}>{cls.name}</h5>
-                            <button onClick={() => deleteClass(school.id, cls.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}><HiOutlineX size={14} /></button>
+
+                    {isExpanded && (
+                      <div style={{ padding: '16px' }}>
+                        {/* کلاس‌ها */}
+                        <div style={{ marginBottom: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            <h4 style={{ fontSize: '14px', fontWeight: '600', color: colors.primary }}>کلاس‌ها ({schoolClasses.length})</h4>
+                            <button onClick={() => { setSelectedSchool(school.id); setModals(prev => ({ ...prev, class: true })); }} style={smallButtonStyle(colors)}>
+                              <HiOutlinePlus size={14} /> کلاس جدید
+                            </button>
                           </div>
-                          <p style={{ fontSize: '11px', color: colors.textSecondary, marginBottom: '8px' }}>معلم: {cls.teacherId ? getTeacherName(cls.teacherId) : 'تعیین نشده'}</p>
-                          
-                          <select value={cls.teacherId || ''} onChange={(e) => { const teacherId = e.target.value ? parseInt(e.target.value) : null; assignTeacherToClass(teacherId, school.id, cls.id); }} style={{ width: '100%', padding: '6px 10px', borderRadius: '8px', border: `1px solid ${colors.primary}`, fontSize: '12px', marginBottom: '12px', background: 'white' }}>
-                            <option value="">انتخاب معلم</option>
-                            {teachersList.filter(t => !t.schoolId || t.schoolId === school.id).map(teacher => (<option key={teacher.id} value={teacher.id}>{teacher.name}</option>))}
-                          </select>
-                          
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                              <p style={{ fontSize: '12px', fontWeight: '500' }}>دانش‌آموزان ({cls.students.length})</p>
-                              <button onClick={() => { setSelectedSchool(school.id); setSelectedClass(cls.id); setShowAddStudentModal(true); }} style={{ background: 'transparent', border: 'none', color: colors.primary, cursor: 'pointer', fontSize: '11px' }}>+ افزودن دانش‌آموز</button>
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                              {cls.students.map(studentId => (
-                                <div key={studentId} style={{ background: colors.cardBg, padding: '4px 10px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                  {getStudentName(studentId)}
-                                  <button onClick={() => removeStudentFromClass(studentId, school.id, cls.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}><HiOutlineX size={10} /></button>
+
+                          {schoolClasses.length === 0 ? (
+                            <p style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: colors.textSecondary }}>هیچ کلاسی تعریف نشده است</p>
+                          ) : (
+                            schoolClasses.map(cls => {
+                              const isClassExpanded = expandedClasses[cls.id] || false;
+                              const classStudents = users.filter(u => u.classId === cls.id && u.role === 'student');
+                              const classTeachers = users.filter(u => u.classId === cls.id && u.role === 'teacher');
+
+                              return (
+                                <div key={cls.id} style={classCardStyle(isClassExpanded, colors)}>
+                                  <div onClick={() => setExpandedClasses(prev => ({ ...prev, [cls.id]: !prev[cls.id] }))} style={classHeaderStyle(isClassExpanded, colors)}>
+                                    <div>
+                                      <p style={{ fontSize: '14px', fontWeight: '600', color: isClassExpanded ? 'white' : colors.text }}>{cls.name}</p>
+                                      <p style={{ fontSize: '11px', color: isClassExpanded ? 'rgba(255,255,255,0.9)' : colors.textSecondary }}>پایه: {cls.grade || 'نامشخص'} | سال: {cls.academicYear || 'نامشخص'}</p>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <button onClick={(e) => { e.stopPropagation(); deleteClass(cls.id, school.id); }} style={smallDeleteButton(isClassExpanded)}>
+                                        <HiOutlineTrash size={12} />
+                                      </button>
+                                      {isClassExpanded ? <HiOutlineChevronDown size={16} color="white" /> : <HiOutlineChevronLeft size={16} color={colors.text} />}
+                                    </div>
+                                  </div>
+
+                                  {isClassExpanded && (
+                                    <div style={{ padding: '12px' }}>
+                                      {/* دانش‌آموزان */}
+                                      <div style={{ marginBottom: '12px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                          <h5 style={{ fontSize: '13px', fontWeight: '600', color: colors.primary }}>دانش‌آموزان ({classStudents.length})</h5>
+                                          <button onClick={() => { setCurrentClassId(cls.id); setSelectedSchool(school.id); setSelectedStudentsForClass([]); setModals(prev => ({ ...prev, addStudentToClass: true })); }} style={smallTextButton(colors)}>
+                                            + اضافه کردن
+                                          </button>
+                                        </div>
+                                        {classStudents.length === 0 ? (
+                                          <p style={{ fontSize: '11px', color: colors.textSecondary, textAlign: 'center', padding: '4px' }}>هیچ دانش‌آموزی ثبت نشده است</p>
+                                        ) : (
+                                          classStudents.map(s => (
+                                            <UserItem key={s.id} user={s} onDelete={() => deleteUser(s.id)} onShowPassword={() => getUserPassword(s.id)} colors={colors} />
+                                          ))
+                                        )}
+                                      </div>
+
+                                      {/* معلمان */}
+                                      <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                          <h5 style={{ fontSize: '13px', fontWeight: '600', color: colors.primary }}>معلمان ({classTeachers.length})</h5>
+                                          <button onClick={() => { setCurrentClassId(cls.id); setSelectedSchool(school.id); setSelectedTeachersForClass([]); setModals(prev => ({ ...prev, addTeacherToClass: true })); }} style={smallTextButton(colors)}>
+                                            + اضافه کردن
+                                          </button>
+                                        </div>
+                                        {classTeachers.length === 0 ? (
+                                          <p style={{ fontSize: '11px', color: colors.textSecondary, textAlign: 'center', padding: '4px' }}>هیچ معلمی ثبت نشده است</p>
+                                        ) : (
+                                          classTeachers.map(t => (
+                                            <UserItem key={t.id} user={t} onDelete={() => deleteUser(t.id)} onShowPassword={() => getUserPassword(t.id)} colors={colors} />
+                                          ))
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              ))}
-                            </div>
-                          </div>
+                              );
+                            })
+                          )}
                         </div>
-                      ))
+                      </div>
                     )}
                   </div>
-
-                  {/* معلمان */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <h4 style={{ fontSize: '14px', fontWeight: '600' }}>معلمان</h4>
-                      <button onClick={() => setShowAddTeacherModal(true)} style={{ background: 'transparent', border: 'none', color: colors.primary, cursor: 'pointer', fontSize: '12px' }}>+ اضافه کردن معلم</button>
-                    </div>
-                    {teachersList.filter(t => t.schoolId === school.id).map(teacher => (
-                      <div key={teacher.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: colors.bg, padding: '8px 12px', borderRadius: '10px', marginBottom: '8px' }}>
-                        <div><p style={{ fontSize: '13px', fontWeight: '500' }}>{teacher.name}</p><p style={{ fontSize: '10px', color: colors.textSecondary }}>{teacher.username}</p></div>
-                        <button onClick={() => removeTeacher(teacher.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}><HiOutlineTrash size={14} /></button>
-                      </div>
-                    ))}
-                    {teachersList.filter(t => t.schoolId === school.id).length === 0 && <p style={{ fontSize: '12px', color: colors.textSecondary, textAlign: 'center', padding: '12px' }}>هیچ معلمی ثبت نشده است</p>}
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
         )}
 
-        {/* ویدیوها */}
-        {activeAdminTab === 'videos' && (
+        {/* ====== کاربران ====== */}
+        {activeTab === 'users' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600' }}>مدیریت کاربران</h2>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <UserTypeButton label="مدیر" color="#FF9800" onClick={() => { setSelectedSchool(schools[0]?.id || null); setModals(prev => ({ ...prev, admin: true })); }} />
+                <UserTypeButton label="معلم" color="#2196F3" onClick={() => { setSelectedSchool(schools[0]?.id || null); setModals(prev => ({ ...prev, teacher: true })); }} />
+                <UserTypeButton label="دانش‌آموز" color="#4CAF50" onClick={() => { setSelectedSchool(schools[0]?.id || null); setSelectedClass(null); setModals(prev => ({ ...prev, student: true })); }} />
+              </div>
+            </div>
+
+            <select onChange={(e) => setSelectedSchool(e.target.value ? parseInt(e.target.value) : null)} value={selectedSchool || ''} style={{ padding: '8px 12px', borderRadius: '10px', border: `1px solid ${colors.primary}`, fontSize: '13px', background: 'white', marginBottom: '16px' }}>
+              <option value="">همه مدارس</option>
+              {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+
+            <div style={{ background: colors.cardBg, borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+              {users.length === 0 ? (
+                <EmptyState message="هیچ کاربری یافت نشد" />
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead style={{ background: colors.bg }}>
+                    <tr>
+                      <th style={{ padding: '12px 16px', textAlign: 'right' }}>نام</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'right' }}>نام کاربری</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'right' }}>نقش</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'right' }}>مدرسه</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'center' }}>عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users
+                      .filter(u => !selectedSchool || u.schoolId === selectedSchool)
+                      .map(u => {
+                        const school = schools.find(s => s.id === u.schoolId);
+                        const roleColors = { 'team_admin': '#9C27B0', 'school_admin': '#FF9800', 'teacher': '#2196F3', 'student': '#4CAF50', 'parent': '#795548' };
+                        return (
+                          <tr key={u.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <td style={{ padding: '12px 16px' }}>{u.firstName} {u.lastName}</td>
+                            <td style={{ padding: '12px 16px', color: colors.textSecondary }}>{u.username}</td>
+                            <td style={{ padding: '12px 16px' }}>
+                              <span style={{ background: roleColors[u.role] || '#999', color: 'white', padding: '3px 10px', borderRadius: '12px', fontSize: '11px' }}>
+                                {u.role === 'team_admin' ? 'مدیر کل' : u.role === 'school_admin' ? 'مدیر مدرسه' : u.role === 'teacher' ? 'معلم' : u.role === 'student' ? 'دانش‌آموز' : u.role}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 16px', color: colors.textSecondary }}>{school?.name || '-'}</td>
+                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                                {u.role !== 'team_admin' && (
+                                  <>
+                                    <button onClick={() => getUserPassword(u.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: colors.primary }}>
+                                      <HiOutlineEye size={16} />
+                                    </button>
+                                    <button onClick={() => deleteUser(u.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}>
+                                      <HiOutlineTrash size={16} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ====== ویدیوها ====== */}
+        {activeTab === 'videos' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '600' }}>لیست ویدیوها</h2>
-              <button onClick={() => { setEditingItem(null); setShowVideoModal(true); }} style={{ background: colors.primary, border: 'none', borderRadius: '10px', padding: '8px 16px', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}><HiOutlinePlus size={14} /> ویدیو جدید</button>
+              <button onClick={() => setModals(prev => ({ ...prev, video: true }))} style={buttonStyle(colors.primary)}>
+                <HiOutlinePlus size={14} /> ویدیو جدید
+              </button>
             </div>
-            {videos.map(video => (
-              <div key={video.id} style={{ background: colors.cardBg, borderRadius: '12px', padding: '12px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div><h3 style={{ fontSize: '14px', fontWeight: '600' }}>{video.title}</h3><div style={{ display: 'flex', gap: '10px', marginTop: '4px', fontSize: '11px', color: colors.textSecondary }}><span>{video.category}</span><span>{video.duration}</span><span style={{ color: colors.primary }}>+{video.xp} XP</span></div></div>
-                <div style={{ display: 'flex', gap: '8px' }}><button onClick={() => { setEditingItem(video); setShowVideoModal(true); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: colors.primary }}><HiOutlinePencil size={16} /></button><button onClick={() => deleteVideo(video.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}><HiOutlineTrash size={16} /></button></div>
-              </div>
-            ))}
+            {videos.length === 0 ? (
+              <EmptyState message="هیچ ویدیویی ثبت نشده است" />
+            ) : (
+              videos.map(v => (
+                <div key={v.id} style={{ background: colors.cardBg, borderRadius: '12px', padding: '12px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ fontSize: '14px', fontWeight: '600' }}>{v.title}</h3>
+                    <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: colors.textSecondary }}>
+                      <span>{v.category}</span>
+                      <span>{v.duration}</span>
+                      {v.xp && <span style={{ color: colors.primary }}>+{v.xp} XP</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteVideo(v.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}>
+                    <HiOutlineTrash size={16} />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         )}
 
-        {/* پادکست‌ها */}
-        {activeAdminTab === 'podcasts' && (
+        {/* ====== پادکست‌ها ====== */}
+        {activeTab === 'podcasts' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '600' }}>لیست پادکست‌ها</h2>
-              <button onClick={() => { setEditingItem(null); setShowPodcastModal(true); }} style={{ background: colors.primary, border: 'none', borderRadius: '10px', padding: '8px 16px', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}><HiOutlinePlus size={14} /> پادکست جدید</button>
+              <button onClick={() => setModals(prev => ({ ...prev, podcast: true }))} style={buttonStyle(colors.primary)}>
+                <HiOutlinePlus size={14} /> پادکست جدید
+              </button>
             </div>
-            {podcasts.map(podcast => (
-              <div key={podcast.id} style={{ background: colors.cardBg, borderRadius: '12px', padding: '12px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div><h3 style={{ fontSize: '14px', fontWeight: '600' }}>{podcast.title}</h3><div style={{ display: 'flex', gap: '10px', marginTop: '4px', fontSize: '11px', color: colors.textSecondary }}><span>{podcast.category}</span><span>{podcast.duration}</span><span style={{ color: colors.primary }}>+{podcast.xp} XP</span></div></div>
-                <div style={{ display: 'flex', gap: '8px' }}><button onClick={() => { setEditingItem(podcast); setShowPodcastModal(true); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: colors.primary }}><HiOutlinePencil size={16} /></button><button onClick={() => deletePodcast(podcast.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}><HiOutlineTrash size={16} /></button></div>
+            {podcasts.length === 0 ? (
+              <EmptyState message="هیچ پادکستی ثبت نشده است" />
+            ) : (
+              podcasts.map(p => (
+                <div key={p.id} style={{ background: colors.cardBg, borderRadius: '12px', padding: '12px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ fontSize: '14px', fontWeight: '600' }}>{p.title}</h3>
+                    <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: colors.textSecondary }}>
+                      <span>{p.category}</span>
+                      <span>{p.duration}</span>
+                      {p.xp && <span style={{ color: colors.primary }}>+{p.xp} XP</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => deletePodcast(p.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}>
+                    <HiOutlineTrash size={16} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ====== تیکت‌ها ====== */}
+    {/* ====== تیکت‌ها ====== */}
+{activeTab === 'tickets' && (
+  <TicketList 
+    user={user} 
+    colors={colors} 
+    isMobile={isMobile}
+  />
+)}
+      </div>
+
+      {/* ====== مودال‌ها ====== */}
+
+      {/* مودال مدرسه */}
+      {modals.school && (
+        <Modal title="مدرسه جدید" onClose={() => { setModals(prev => ({ ...prev, school: false })); resetForm(); }} onSave={addSchool} colors={colors}>
+          <Input placeholder="نام مدرسه *" value={form.schoolName} onChange={(e) => handleFormChange('schoolName', e.target.value)} />
+          <Input placeholder="کد مدرسه *" value={form.schoolCode} onChange={(e) => handleFormChange('schoolCode', e.target.value)} />
+          <Input placeholder="آدرس" value={form.schoolAddress} onChange={(e) => handleFormChange('schoolAddress', e.target.value)} />
+          <Input placeholder="تلفن" value={form.schoolPhone} onChange={(e) => handleFormChange('schoolPhone', e.target.value)} />
+          <Input placeholder="ایمیل" value={form.schoolEmail} onChange={(e) => handleFormChange('schoolEmail', e.target.value)} />
+        </Modal>
+      )}
+
+      {/* مودال کلاس */}
+      {modals.class && (
+        <Modal title="کلاس جدید" onClose={() => { setModals(prev => ({ ...prev, class: false })); resetForm(); }} onSave={addClass} colors={colors}>
+          <p style={{ fontSize: '13px', color: colors.textSecondary, marginBottom: '12px' }}>مدرسه: {schools.find(s => s.id === selectedSchool)?.name}</p>
+          <Input placeholder="نام کلاس *" value={form.className} onChange={(e) => handleFormChange('className', e.target.value)} />
+          <Input placeholder="پایه *" value={form.classGrade} onChange={(e) => handleFormChange('classGrade', e.target.value)} />
+          <Input placeholder="سال تحصیلی *" value={form.classAcademicYear} onChange={(e) => handleFormChange('classAcademicYear', e.target.value)} />
+        </Modal>
+      )}
+
+      {/* مودال معلم */}
+      {modals.teacher && (
+        <Modal title="معلم جدید" onClose={() => { setModals(prev => ({ ...prev, teacher: false })); resetForm(); }} onSave={addTeacher} colors={colors}>
+          <p style={{ fontSize: '13px', color: colors.textSecondary, marginBottom: '12px' }}>مدرسه: {selectedSchool ? schools.find(s => s.id === selectedSchool)?.name : schools[0]?.name || 'انتخاب نشده'}</p>
+          <Input placeholder="نام کامل *" value={form.teacherName} onChange={(e) => handleFormChange('teacherName', e.target.value)} />
+          <Input placeholder="نام کاربری (اختیاری)" value={form.teacherUsername} onChange={(e) => handleFormChange('teacherUsername', e.target.value)} />
+          <Input placeholder="رمز عبور (اختیاری)" type="password" value={form.teacherPassword} onChange={(e) => handleFormChange('teacherPassword', e.target.value)} />
+          <p style={{ fontSize: '11px', color: colors.textSecondary, marginTop: '-5px', marginBottom: '10px' }}>در صورت خالی بودن، به صورت خودکار ساخته می‌شود</p>
+        </Modal>
+      )}
+
+      {/* مودال دانش‌آموز */}
+      {modals.student && (
+        <Modal title="دانش‌آموز جدید" onClose={() => { setModals(prev => ({ ...prev, student: false })); resetForm(); }} onSave={addStudent} colors={colors}>
+          <p style={{ fontSize: '13px', color: colors.textSecondary, marginBottom: '12px' }}>مدرسه: {selectedSchool ? schools.find(s => s.id === selectedSchool)?.name : schools[0]?.name || 'انتخاب نشده'}</p>
+          <select 
+            value={selectedClass || ''} 
+            onChange={(e) => setSelectedClass(e.target.value ? parseInt(e.target.value) : null)} 
+            style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }}
+            required
+          >
+            <option value="">انتخاب کلاس *</option>
+            {selectedSchool && classes[selectedSchool] && Array.isArray(classes[selectedSchool]) && classes[selectedSchool].length > 0 ? (
+              classes[selectedSchool].map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))
+            ) : (
+              <option value="" disabled>هیچ کلاسی موجود نیست</option>
+            )}
+          </select>
+          <Input placeholder="نام *" value={form.studentName} onChange={(e) => handleFormChange('studentName', e.target.value)} />
+          <Input placeholder="نام خانوادگی *" value={form.studentLastName} onChange={(e) => handleFormChange('studentLastName', e.target.value)} />
+          <Input placeholder="نام کاربری (اختیاری)" value={form.studentUsername} onChange={(e) => handleFormChange('studentUsername', e.target.value)} />
+          <Input placeholder="رمز عبور (اختیاری)" type="password" value={form.studentPassword} onChange={(e) => handleFormChange('studentPassword', e.target.value)} />
+          <p style={{ fontSize: '11px', color: colors.textSecondary, marginTop: '-5px', marginBottom: '10px' }}>در صورت خالی بودن، به صورت خودکار ساخته می‌شود</p>
+        </Modal>
+      )}
+
+      {/* مودال مدیر */}
+      {modals.admin && (
+        <Modal title="مدیر مدرسه جدید" onClose={() => { setModals(prev => ({ ...prev, admin: false })); resetForm(); }} onSave={addAdmin} colors={colors}>
+          <p style={{ fontSize: '13px', color: colors.textSecondary, marginBottom: '12px' }}>مدرسه: {selectedSchool ? schools.find(s => s.id === selectedSchool)?.name : schools[0]?.name || 'انتخاب نشده'}</p>
+          <Input placeholder="نام *" value={form.adminName} onChange={(e) => handleFormChange('adminName', e.target.value)} />
+          <Input placeholder="نام خانوادگی *" value={form.adminLastName} onChange={(e) => handleFormChange('adminLastName', e.target.value)} />
+          <Input placeholder="نام کاربری (اختیاری)" value={form.adminUsername} onChange={(e) => handleFormChange('adminUsername', e.target.value)} />
+          <Input placeholder="رمز عبور (اختیاری)" type="password" value={form.adminPassword} onChange={(e) => handleFormChange('adminPassword', e.target.value)} />
+          <p style={{ fontSize: '11px', color: colors.textSecondary, marginTop: '-5px', marginBottom: '10px' }}>در صورت خالی بودن، به صورت خودکار ساخته می‌شود</p>
+        </Modal>
+      )}
+
+      {/* مودال نمایش پسورد */}
+      {modals.userPassword && selectedUser && (
+        <Modal 
+          title="اطلاعات کاربر" 
+          onClose={() => { setModals(prev => ({ ...prev, userPassword: false })); setSelectedUser(null); }} 
+          onSave={() => { setModals(prev => ({ ...prev, userPassword: false })); setSelectedUser(null); }}
+          colors={colors}
+          saveText="بستن"
+        >
+          <div style={{ padding: '10px 0' }}>
+            <p style={{ fontSize: '14px', marginBottom: '8px' }}>
+              <strong>نام کاربری:</strong> {selectedUser.username}
+            </p>
+            <p style={{ fontSize: '14px', marginBottom: '8px' }}>
+              <strong>رمز عبور:</strong> {selectedUser.password}
+            </p>
+            <p style={{ fontSize: '12px', color: colors.textSecondary, marginTop: '12px' }}>
+              ⚠️ این اطلاعات را در جای امن نگهداری کنید
+            </p>
+          </div>
+        </Modal>
+      )}
+
+      {/* مودال افزودن دانش‌آموز به کلاس */}
+      {modals.addStudentToClass && (
+        <Modal title="افزودن دانش‌آموز به کلاس" onClose={() => { setModals(prev => ({ ...prev, addStudentToClass: false })); setSelectedStudentsForClass([]); }} onSave={addStudentsToClass} colors={colors}>
+          <p style={{ fontSize: '13px', color: colors.textSecondary, marginBottom: '12px' }}>دانش‌آموزان مدرسه {schools.find(s => s.id === selectedSchool)?.name}</p>
+          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+            {users.filter(u => u.schoolId === selectedSchool && u.role === 'student').map(s => (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', marginBottom: '4px', background: selectedStudentsForClass.includes(s.id) ? `${colors.primary}20` : 'transparent', borderRadius: '8px', cursor: 'pointer' }} onClick={() => {
+                if (selectedStudentsForClass.includes(s.id)) {
+                  setSelectedStudentsForClass(selectedStudentsForClass.filter(id => id !== s.id));
+                } else {
+                  setSelectedStudentsForClass([...selectedStudentsForClass, s.id]);
+                }
+              }}>
+                <input type="checkbox" checked={selectedStudentsForClass.includes(s.id)} onChange={() => {}} />
+                <p style={{ fontSize: '13px' }}>{s.firstName} {s.lastName}</p>
               </div>
             ))}
           </div>
-        )}
+        </Modal>
+      )}
 
-        {/* تیکت‌ها */}
-        {activeAdminTab === 'tickets' && (
-          <TicketList user={user} colors={colors} isMobile={isMobile} />
-        )}
-      </div>
-
-      {/* مودال‌ها */}
-      {showAddSchoolModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={() => setShowAddSchoolModal(false)}>
-          <div style={{ background: 'white', borderRadius: '24px', padding: '20px', width: '90%', maxWidth: '350px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>مدرسه جدید</h3>
-            <input type="text" placeholder="نام مدرسه" value={newSchoolName} onChange={(e) => setNewSchoolName(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }} />
-            <input type="text" placeholder="شهر" value={newSchoolCity} onChange={(e) => setNewSchoolCity(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '16px', fontSize: '14px' }} />
-            <div style={{ display: 'flex', gap: '10px' }}><button onClick={() => setShowAddSchoolModal(false)} style={{ flex: 1, padding: '10px', background: '#E0E0E0', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>انصراف</button><button onClick={addSchool} style={{ flex: 1, padding: '10px', background: colors.primary, border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer' }}>ثبت</button></div>
+      {/* مودال افزودن معلم به کلاس */}
+      {modals.addTeacherToClass && (
+        <Modal title="افزودن معلم به کلاس" onClose={() => { setModals(prev => ({ ...prev, addTeacherToClass: false })); setSelectedTeachersForClass([]); }} onSave={addTeachersToClass} colors={colors}>
+          <p style={{ fontSize: '13px', color: colors.textSecondary, marginBottom: '12px' }}>معلمان مدرسه {schools.find(s => s.id === selectedSchool)?.name}</p>
+          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+            {users.filter(u => u.schoolId === selectedSchool && u.role === 'teacher').map(t => (
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', marginBottom: '4px', background: selectedTeachersForClass.includes(t.id) ? `${colors.primary}20` : 'transparent', borderRadius: '8px', cursor: 'pointer' }} onClick={() => {
+                if (selectedTeachersForClass.includes(t.id)) {
+                  setSelectedTeachersForClass(selectedTeachersForClass.filter(id => id !== t.id));
+                } else {
+                  setSelectedTeachersForClass([...selectedTeachersForClass, t.id]);
+                }
+              }}>
+                <input type="checkbox" checked={selectedTeachersForClass.includes(t.id)} onChange={() => {}} />
+                <p style={{ fontSize: '13px' }}>{t.firstName} {t.lastName}</p>
+              </div>
+            ))}
           </div>
-        </div>
+        </Modal>
       )}
 
-      {showAddClassModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={() => setShowAddClassModal(false)}>
-          <div style={{ background: 'white', borderRadius: '24px', padding: '20px', width: '90%', maxWidth: '350px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>کلاس جدید</h3>
-            <p style={{ fontSize: '13px', color: colors.textSecondary, marginBottom: '12px' }}>مدرسه: {schools.find(s => s.id === parseInt(selectedSchool))?.name}</p>
-            <input type="text" placeholder="نام کلاس" value={newClassName} onChange={(e) => setNewClassName(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '16px', fontSize: '14px' }} />
-            <div style={{ display: 'flex', gap: '10px' }}><button onClick={() => setShowAddClassModal(false)} style={{ flex: 1, padding: '10px', background: '#E0E0E0', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>انصراف</button><button onClick={addClass} style={{ flex: 1, padding: '10px', background: colors.primary, border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer' }}>ثبت</button></div>
-          </div>
-        </div>
+      {/* مودال ویدیو */}
+      {modals.video && (
+        <MediaModal type="video" onClose={() => setModals(prev => ({ ...prev, video: false }))} colors={colors} />
       )}
 
-      {showAddTeacherModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={() => setShowAddTeacherModal(false)}>
-          <div style={{ background: 'white', borderRadius: '24px', padding: '20px', width: '90%', maxWidth: '350px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>معلم جدید</h3>
-            <input type="text" placeholder="نام معلم" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }} />
-            <input type="text" placeholder="نام کاربری" value={newTeacherUsername} onChange={(e) => setNewTeacherUsername(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '16px', fontSize: '14px' }} />
-            <div style={{ display: 'flex', gap: '10px' }}><button onClick={() => setShowAddTeacherModal(false)} style={{ flex: 1, padding: '10px', background: '#E0E0E0', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>انصراف</button><button onClick={addTeacher} style={{ flex: 1, padding: '10px', background: colors.primary, border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer' }}>ثبت</button></div>
-          </div>
-        </div>
+      {/* مودال پادکست */}
+      {modals.podcast && (
+        <MediaModal type="podcast" onClose={() => setModals(prev => ({ ...prev, podcast: false }))} colors={colors} />
       )}
 
-      {showAddStudentModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={() => setShowAddStudentModal(false)}>
-          <div style={{ background: 'white', borderRadius: '24px', padding: '20px', width: '90%', maxWidth: '400px', maxHeight: '70vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>افزودن دانش‌آموز</h3>
-            <p style={{ fontSize: '12px', color: colors.textSecondary, marginBottom: '16px' }}>{schools.find(s => s.id === parseInt(selectedSchool))?.name} - {selectedSchoolData?.classes.find(c => c.id === parseInt(selectedClass))?.name}</p>
-            <div style={{ flex: 1, overflowY: 'auto', marginBottom: '16px' }}>
-              {availableStudents.length === 0 ? <p style={{ textAlign: 'center', padding: '30px', color: '#999' }}>هیچ دانش‌آموزی برای اضافه کردن وجود ندارد</p> : availableStudents.map(student => (
-                <div key={student.id} onClick={() => { if (selectedStudents.includes(student.id)) { setSelectedStudents(selectedStudents.filter(id => id !== student.id)); } else { setSelectedStudents([...selectedStudents, student.id]); } }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', marginBottom: '8px', background: selectedStudents.includes(student.id) ? `${colors.primary}10` : colors.bg, borderRadius: '10px', cursor: 'pointer', border: selectedStudents.includes(student.id) ? `1px solid ${colors.primary}` : '1px solid transparent' }}>
-                  <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${colors.primary}`, background: selectedStudents.includes(student.id) ? colors.primary : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{selectedStudents.includes(student.id) && <HiOutlineCheck size={10} color="white" />}</div>
-                  <div><p style={{ fontSize: '13px', fontWeight: '500' }}>{student.name}</p><p style={{ fontSize: '10px', color: colors.textSecondary }}>{student.username}</p></div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}><button onClick={() => { setShowAddStudentModal(false); setSelectedStudents([]); }} style={{ flex: 1, padding: '10px', background: '#E0E0E0', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>انصراف</button><button onClick={addStudentsToClass} style={{ flex: 1, padding: '10px', background: colors.primary, border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer' }}>افزودن</button></div>
-          </div>
-        </div>
-      )}
-
-      {(showVideoModal || editingItem) && (
-        <MediaModal type="video" item={editingItem} onClose={() => { setShowVideoModal(false); setEditingItem(null); }} onSave={addVideo} colors={colors} />
-      )}
-
-      {(showPodcastModal || editingItem) && (
-        <MediaModal type="podcast" item={editingItem} onClose={() => { setShowPodcastModal(false); setEditingItem(null); }} onSave={addPodcast} colors={colors} />
-      )}
-
-      {/* نویگیشن بار موبایل */}
+      {/* ====== نویگیشن موبایل ====== */}
       {isMobile && (
-        <div style={{
-          position: 'fixed',
-          bottom: 0,
-          right: 0,
-          left: 0,
-          background: colors.navBg,
-          boxShadow: '0 -2px 20px rgba(0,0,0,0.08)',
-          borderRadius: '28px 28px 0 0',
-          padding: '10px 12px',
-          display: 'flex',
-          justifyContent: 'space-around',
-          alignItems: 'center',
-          zIndex: 100
-        }}>
-          {mobileNavItems.map((item) => {
-            const IconComponent = item.icon;
-            const isActive = activeAdminTab === item.id;
+        <div style={{ position: 'fixed', bottom: 0, right: 0, left: 0, background: 'white', boxShadow: '0 -2px 20px rgba(0,0,0,0.08)', borderRadius: '28px 28px 0 0', padding: '10px 12px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', zIndex: 100 }}>
+          {tabs.map(item => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
             return (
-              <div
-                key={item.id}
-                onClick={() => setActiveAdminTab(item.id)}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '3px',
-                  cursor: 'pointer'
-                }}
-              >
-                <IconComponent size={20} color={isActive ? colors.primary : '#999'} />
-                <span style={{ fontSize: '10px', color: isActive ? colors.primary : '#999', fontWeight: isActive ? '600' : '400' }}>
-                  {item.label}
-                </span>
-                {isActive && <div style={{ width: '4px', height: '3px', borderRadius: '2px', background: colors.primary, marginTop: '2px' }} />}
+              <div key={item.id} onClick={() => setActiveTab(item.id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+                <Icon size={20} color={isActive ? colors.primary : '#999'} />
+                <span style={{ fontSize: '10px', color: isActive ? colors.primary : '#999', fontWeight: isActive ? '600' : '400' }}>{item.label}</span>
+                {isActive && <div style={{ width: '4px', height: '3px', borderRadius: '2px', background: colors.primary }} />}
               </div>
             );
           })}
@@ -863,29 +1059,224 @@ const AdminPanel = () => {
   );
 };
 
-// مودال ویدیو/پادکست
-const MediaModal = ({ type, item, onClose, onSave, colors }) => {
-  const [title, setTitle] = useState(item?.title || '');
-  const [category, setCategory] = useState(item?.category || '');
-  const [duration, setDuration] = useState(item?.duration || '');
-  const [xp, setXp] = useState(item?.xp || 0);
+// ========== کامپوننت‌های کمکی ==========
+
+const DashboardCard = ({ icon, count, label, colors }) => (
+  <div style={{ background: colors.cardBg, borderRadius: '16px', padding: '16px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+    <div style={{ color: colors.primary }}>{icon}</div>
+    <p style={{ fontSize: '24px', fontWeight: '700', marginTop: '8px' }}>{count}</p>
+    <p style={{ fontSize: '12px', color: colors.textSecondary }}>{label}</p>
+  </div>
+);
+
+const EmptyState = ({ message }) => (
+  <div style={{ background: 'white', borderRadius: '16px', padding: '40px', textAlign: 'center' }}>
+    <p style={{ color: '#78909C' }}>{message}</p>
+  </div>
+);
+
+const UserItem = ({ user, onDelete, onShowPassword, colors }) => (
+  <div style={{ background: 'white', borderRadius: '8px', padding: '8px 12px', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div>
+      <p style={{ fontSize: '12px', fontWeight: '500' }}>{user.firstName} {user.lastName}</p>
+      <p style={{ fontSize: '10px', color: colors.textSecondary }}>{user.username}</p>
+    </div>
+    <div style={{ display: 'flex', gap: '8px' }}>
+      <button onClick={onShowPassword} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: colors.primary }}>
+        <HiOutlineEye size={14} />
+      </button>
+      <button onClick={onDelete} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}>
+        <HiOutlineTrash size={14} />
+      </button>
+    </div>
+  </div>
+);
+
+const UserTypeButton = ({ label, color, onClick }) => (
+  <button onClick={onClick} style={{ background: color, border: 'none', borderRadius: '10px', padding: '8px 16px', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
+    <HiOutlineUserAdd size={14} /> {label}
+  </button>
+);
+
+const Input = ({ placeholder, value, onChange, type = 'text' }) => (
+  <input type={type} placeholder={placeholder} value={value} onChange={onChange} style={{ width: '100%', padding: '10px', border: `1px solid #4DB6AC`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }} />
+);
+
+// ========== استایل‌ها ==========
+
+const buttonStyle = (color) => ({
+  background: color,
+  border: 'none',
+  borderRadius: '10px',
+  padding: '8px 16px',
+  color: 'white',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  cursor: 'pointer',
+  fontSize: '13px'
+});
+
+const smallButtonStyle = (colors) => ({
+  background: 'transparent',
+  border: 'none',
+  color: colors.primary,
+  cursor: 'pointer',
+  fontSize: '12px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px'
+});
+
+const smallTextButton = (colors) => ({
+  background: 'transparent',
+  border: 'none',
+  color: colors.primary,
+  cursor: 'pointer',
+  fontSize: '11px'
+});
+
+const cardStyle = (isExpanded, colors) => ({
+  background: colors.cardBg,
+  borderRadius: '16px',
+  marginBottom: '16px',
+  overflow: 'hidden',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+  border: isExpanded ? `2px solid ${colors.primary}` : '1px solid #eee'
+});
+
+const headerStyle = (isExpanded, colors) => ({
+  padding: '14px 16px',
+  background: isExpanded ? colors.primary : '#f5f5f5',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  cursor: 'pointer',
+  transition: 'all 0.3s ease'
+});
+
+const deleteButtonStyle = (isExpanded) => ({
+  background: isExpanded ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+  border: 'none',
+  borderRadius: '8px',
+  padding: '5px 10px',
+  cursor: 'pointer',
+  color: isExpanded ? 'white' : '#F44336'
+});
+
+const classCardStyle = (isExpanded, colors) => ({
+  background: colors.bg,
+  borderRadius: '12px',
+  marginBottom: '10px',
+  overflow: 'hidden',
+  border: isExpanded ? `2px solid ${colors.primary}` : '1px solid #eee'
+});
+
+const classHeaderStyle = (isExpanded, colors) => ({
+  padding: '12px 16px',
+  background: isExpanded ? colors.primary : 'white',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  cursor: 'pointer',
+  transition: 'all 0.3s ease'
+});
+
+const smallDeleteButton = (isExpanded) => ({
+  background: isExpanded ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+  border: 'none',
+  borderRadius: '6px',
+  padding: '4px 8px',
+  cursor: 'pointer',
+  color: isExpanded ? 'white' : '#F44336'
+});
+
+// ========== مودال ==========
+
+const Modal = ({ title, onClose, onSave, colors, children, saveText = 'ثبت' }) => (
+  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={onClose}>
+    <div style={{ background: 'white', borderRadius: '24px', padding: '20px', width: '90%', maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+      <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>{title}</h3>
+      {children}
+      <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+        <button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#E0E0E0', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>انصراف</button>
+        <button onClick={onSave} style={{ flex: 1, padding: '10px', background: colors.primary, border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer' }}>{saveText}</button>
+      </div>
+    </div>
+  </div>
+);
+
+// ========== مودال ویدیو/پادکست ==========
+
+const MediaModal = ({ type, onClose, colors }) => {
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('');
+  const [duration, setDuration] = useState('');
+  const [durationSeconds, setDurationSeconds] = useState('');
+  const [xp, setXp] = useState(0);
+  const [description, setDescription] = useState('');
+  const [file, setFile] = useState(null);
+  const [fileName, setFileName] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   const categories = type === 'video' ? ['داستانی', 'آموزشی', 'علمی', 'سرگرمی'] : ['داستانی', 'آموزشی', 'انگیزشی', 'کودک'];
 
-  const handleSubmit = () => {
-    if (!title.trim() || !category || !duration || xp <= 0) { alert('لطفاً همه فیلدها را کامل کنید'); return; }
-    onSave({ title, category, duration, xp });
-    onClose();
+  const handleFileChange = (e) => {
+    const f = e.target.files[0];
+    if (f) { setFile(f); setFileName(f.name); }
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !category || !duration || xp <= 0 || !file) {
+      alert('لطفاً همه فیلدها را کامل کنید');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('title', title.trim());
+      formData.append('category', category);
+      formData.append('duration', duration);
+      formData.append('duration_seconds', parseInt(durationSeconds) || 0);
+      formData.append('xp', Number(xp));
+      formData.append('description', description.trim() || '');
+      formData.append('file', file);
+      await apiClient.post(`v1/${type}s`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      alert('با موفقیت ثبت شد');
+      onClose();
+      window.location.reload();
+    } catch (error) {
+      alert(error.response?.data?.message || 'خطا در آپلود');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '24px', padding: '20px', width: '90%', maxWidth: '350px' }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>{item ? 'ویرایش' : 'جدید'} {type === 'video' ? 'ویدیو' : 'پادکست'}</h3>
-        <input type="text" placeholder="عنوان" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }} />
-        <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }}><option value="">دسته‌بندی</option>{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select>
-        <input type="text" placeholder="مدت زمان" value={duration} onChange={(e) => setDuration(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }} />
-        <input type="number" placeholder="امتیاز XP" value={xp} onChange={(e) => setXp(parseInt(e.target.value))} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '16px', fontSize: '14px' }} />
-        <div style={{ display: 'flex', gap: '10px' }}><button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#E0E0E0', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>انصراف</button><button onClick={handleSubmit} style={{ flex: 1, padding: '10px', background: colors.primary, border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer' }}>ثبت</button></div>
+      <div style={{ background: 'white', borderRadius: '24px', padding: '20px', width: '90%', maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>{type === 'video' ? 'ویدیو جدید' : 'پادکست جدید'}</h3>
+        <Input placeholder="عنوان *" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }}>
+          <option value="">دسته‌بندی *</option>
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <Input placeholder="مدت زمان (مثال: 05:30) *" value={duration} onChange={(e) => setDuration(e.target.value)} />
+        <Input placeholder="مدت زمان به ثانیه" value={durationSeconds} onChange={(e) => setDurationSeconds(e.target.value)} type="number" />
+        <Input placeholder="امتیاز XP *" value={xp} onChange={(e) => setXp(parseInt(e.target.value) || 0)} type="number" />
+        <Input placeholder="توضیحات" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <div onClick={() => fileInputRef.current.click()} style={{ width: '100%', padding: '16px', border: `2px dashed ${colors.primary}`, borderRadius: '12px', textAlign: 'center', cursor: 'pointer', marginBottom: '16px', background: fileName ? `${colors.primary}10` : 'transparent' }}>
+          <HiOutlineUpload size={24} color={colors.primary} style={{ margin: '0 auto 8px' }} />
+          <p style={{ fontSize: '13px', color: fileName ? colors.primary : colors.textSecondary }}>{fileName || `فایل ${type === 'video' ? 'ویدیو' : 'صوتی'} را انتخاب کنید *`}</p>
+          <input ref={fileInputRef} type="file" accept={type === 'video' ? 'video/*' : 'audio/*'} onChange={handleFileChange} style={{ display: 'none' }} />
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={onClose} disabled={uploading} style={{ flex: 1, padding: '10px', background: '#E0E0E0', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>انصراف</button>
+          <button onClick={handleSubmit} disabled={uploading} style={{ flex: 1, padding: '10px', background: colors.primary, border: 'none', borderRadius: '10px', color: 'white', cursor: uploading ? 'not-allowed' : 'pointer' }}>
+            {uploading ? 'در حال آپلود...' : 'ثبت'}
+          </button>
+        </div>
       </div>
     </div>
   );

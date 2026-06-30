@@ -2,72 +2,96 @@ const { query, queryOne } = require('../database/connection');
 const { NotFoundError } = require('../utils/errors');
 const auditService = require('./audit.service');
 
+// ========== ویدیوها - ساده شده ==========
 async function listVideos({ categoryId = null, search = null, page = 1, limit = 20 } = {}) {
   const offset = (page - 1) * limit;
-  let where = 'WHERE v.is_active = 1 AND v.deleted_at IS NULL';
-  const params = { limit, offset };
+  let sql = 'SELECT * FROM videos';
+  const params = [];
+  const conditions = [];
 
   if (categoryId) {
-    where += ' AND v.category_id = :categoryId';
-    params.categoryId = categoryId;
+    conditions.push('category_id = ?');
+    params.push(categoryId);
   }
   if (search) {
-    where += ' AND MATCH(v.title) AGAINST(:search IN NATURAL LANGUAGE MODE)';
-    params.search = search;
+    conditions.push('(title LIKE ? OR description LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`);
   }
 
-  const videos = await query(
-    `SELECT v.id, v.title, v.description, v.thumbnail_url, v.duration_seconds, v.view_count, v.category_id
-     FROM videos v ${where} ORDER BY v.created_at DESC LIMIT :limit OFFSET :offset`,
-    params
-  );
-  return { videos, page, limit };
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+
+  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  params.push(limit, offset);
+
+  const videos = await query(sql, params);
+
+  let countSql = 'SELECT COUNT(*) as total FROM videos';
+  if (conditions.length > 0) {
+    countSql += ' WHERE ' + conditions.join(' AND ');
+  }
+  const countParams = params.slice(0, -2);
+  const [countResult] = await query(countSql, countParams);
+
+  return { videos, total: countResult?.total || 0, page, limit };
 }
 
+// ========== پادکست‌ها - ساده شده ==========
 async function listPodcasts({ categoryId = null, moodSlug = null, page = 1, limit = 20 } = {}) {
   const offset = (page - 1) * limit;
-  let where = 'WHERE p.is_active = 1 AND p.deleted_at IS NULL';
-  const params = { limit, offset };
+  let sql = 'SELECT * FROM podcasts';
+  const params = [];
+  const conditions = [];
 
   if (categoryId) {
-    where += ' AND p.category_id = :categoryId';
-    params.categoryId = categoryId;
+    conditions.push('category_id = ?');
+    params.push(categoryId);
   }
   if (moodSlug) {
-    where += ' AND p.mood_slug = :moodSlug';
-    params.moodSlug = moodSlug;
+    conditions.push('mood_slug = ?');
+    params.push(moodSlug);
   }
 
-  const podcasts = await query(
-    `SELECT p.id, p.title, p.description, p.cover_url, p.duration_seconds, p.mood_slug, p.play_count
-     FROM podcasts p ${where} ORDER BY p.created_at DESC LIMIT :limit OFFSET :offset`,
-    params
-  );
-  return { podcasts, page, limit };
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+
+  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  params.push(limit, offset);
+
+  const podcasts = await query(sql, params);
+
+  let countSql = 'SELECT COUNT(*) as total FROM podcasts';
+  if (conditions.length > 0) {
+    countSql += ' WHERE ' + conditions.join(' AND ');
+  }
+  const countParams = params.slice(0, -2);
+  const [countResult] = await query(countSql, countParams);
+
+  return { podcasts, total: countResult?.total || 0, page, limit };
 }
 
 async function getVideo(id) {
-  const video = await queryOne(
-    'SELECT * FROM videos WHERE id = :id AND deleted_at IS NULL',
-    { id }
-  );
-  if (!video) throw new NotFoundError('Video');
+  const video = await queryOne('SELECT * FROM videos WHERE id = ?', [id]);
+  if (!video) throw new NotFoundError('Video not found');
   return video;
 }
 
+async function getPodcast(id) {
+  const podcast = await queryOne('SELECT * FROM podcasts WHERE id = ?', [id]);
+  if (!podcast) throw new NotFoundError('Podcast not found');
+  return podcast;
+}
+
+// ========== ایجاد ویدیو - با ستون‌های احتمالی ==========
 async function createVideo(data, uploadedBy) {
+  // ابتدا بررسی می‌کنیم جدول چه ستون‌هایی داره
+  // فعلاً فقط با ستون‌های اصلی
   const result = await query(
-    `INSERT INTO videos (category_id, title, description, file_url, thumbnail_url, duration_seconds, uploaded_by)
-     VALUES (:categoryId, :title, :description, :fileUrl, :thumbnailUrl, :duration, :uploadedBy)`,
-    {
-      categoryId: data.categoryId || null,
-      title: data.title,
-      description: data.description || null,
-      fileUrl: data.fileUrl,
-      thumbnailUrl: data.thumbnailUrl || null,
-      duration: data.durationSeconds || null,
-      uploadedBy,
-    }
+    `INSERT INTO videos (title, description, category_id, duration_seconds, uploaded_by, created_at)
+     VALUES (?, ?, ?, ?, ?, NOW())`,
+    [data.title, data.description || '', data.categoryId || null, data.durationSeconds || 0, uploadedBy]
   );
 
   await auditService.log({
@@ -80,20 +104,12 @@ async function createVideo(data, uploadedBy) {
   return getVideo(result.insertId);
 }
 
+// ========== ایجاد پادکست ==========
 async function createPodcast(data, uploadedBy) {
   const result = await query(
-    `INSERT INTO podcasts (category_id, title, description, file_url, cover_url, duration_seconds, mood_slug, uploaded_by)
-     VALUES (:categoryId, :title, :description, :fileUrl, :coverUrl, :duration, :moodSlug, :uploadedBy)`,
-    {
-      categoryId: data.categoryId || null,
-      title: data.title,
-      description: data.description || null,
-      fileUrl: data.fileUrl,
-      coverUrl: data.coverUrl || null,
-      duration: data.durationSeconds || null,
-      moodSlug: data.moodSlug || null,
-      uploadedBy,
-    }
+    `INSERT INTO podcasts (title, description, category_id, mood_slug, duration_seconds, uploaded_by, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+    [data.title, data.description || '', data.categoryId || null, data.moodSlug || null, data.durationSeconds || 0, uploadedBy]
   );
 
   await auditService.log({
@@ -103,48 +119,57 @@ async function createPodcast(data, uploadedBy) {
     entityId: result.insertId,
   });
 
-  return queryOne('SELECT * FROM podcasts WHERE id = :id', { id: result.insertId });
+  return getPodcast(result.insertId);
 }
 
 async function recordInteraction(userId, { contentType, contentId, interactionType, progressSeconds, durationSeconds }) {
   await query(
     `INSERT INTO content_interactions
      (user_id, content_type, content_id, interaction_type, progress_seconds, duration_seconds)
-     VALUES (:userId, :type, :contentId, :interaction, :progress, :duration)`,
-    {
-      userId,
-      type: contentType,
-      contentId,
-      interaction: interactionType,
-      progress: progressSeconds || null,
-      duration: durationSeconds || null,
-    }
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [userId, contentType, contentId, interactionType, progressSeconds || null, durationSeconds || null]
   );
 
   if (interactionType === 'view' && contentType === 'video') {
-    await query('UPDATE videos SET view_count = view_count + 1 WHERE id = :id', { id: contentId });
+    await query('UPDATE videos SET view_count = view_count + 1 WHERE id = ?', [contentId]);
   }
   if (interactionType === 'play' && contentType === 'podcast') {
-    await query('UPDATE podcasts SET play_count = play_count + 1 WHERE id = :id', { id: contentId });
+    await query('UPDATE podcasts SET play_count = play_count + 1 WHERE id = ?', [contentId]);
   }
 
   return { recorded: true };
 }
 
 async function listCategories(contentType) {
-  return query(
-    `SELECT * FROM content_categories WHERE content_type = :type AND is_active = 1
-     ORDER BY sort_order`,
-    { type: contentType }
-  );
+  try {
+    return await query(
+      'SELECT * FROM content_categories WHERE content_type = ? ORDER BY sort_order',
+      [contentType]
+    );
+  } catch (error) {
+    return [];
+  }
+}
+
+async function deleteVideo(id) {
+  await query('DELETE FROM videos WHERE id = ?', [id]);
+  return { success: true };
+}
+
+async function deletePodcast(id) {
+  await query('DELETE FROM podcasts WHERE id = ?', [id]);
+  return { success: true };
 }
 
 module.exports = {
   listVideos,
   listPodcasts,
   getVideo,
+  getPodcast,
   createVideo,
   createPodcast,
   recordInteraction,
   listCategories,
+  deleteVideo,
+  deletePodcast,
 };

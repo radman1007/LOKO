@@ -1,0 +1,28 @@
+// src/services/ticket.service.js
+import apiClient from './api.client';
+
+export const ticketService = {
+  // دریافت لیست تیکت‌ها
+  getTickets: async () => {
+    const response = await apiClient.get('/tickets');
+    return response.data;
+  },
+
+  // ایجاد تیکت
+  createTicket: async (data) => {
+    const response = await apiClient.post('/tickets', data);
+    return response.data;
+  },
+
+  // پاسخ به تیکت
+  replyTicket: async (id, data) => {
+    const response = await apiClient.post(`/tickets/${id}/reply`, data);
+    return response.data;
+  },
+
+  // تغییر وضعیت
+  updateStatus: async (id, status) => {
+    const response = await apiClient.patch(`/tickets/${id}/status`, { status });
+    return response.data;
+  },
+};

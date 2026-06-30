@@ -55,6 +55,10 @@ router.get('/schools/:schoolId/classes', authenticate, authorize(PERMISSIONS.CLA
 router.post('/schools/:schoolId/classes', authenticate, authorize(PERMISSIONS.CLASSES_WRITE), classController.create);
 router.get('/classes/:id', authenticate, authorize(PERMISSIONS.CLASSES_READ), classController.get);
 
+// ✅ مسیرهای جدید برای مدیریت دانش‌آموز و معلم در کلاس
+router.post('/classes/:id/students', authenticate, authorize(PERMISSIONS.CLASSES_WRITE), classController.addStudent);
+router.post('/classes/:id/teachers', authenticate, authorize(PERMISSIONS.CLASSES_WRITE), classController.addTeacher);
+
 // ─── Content: Videos (Loko TV) ──────────────────────────────
 router.get('/videos', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.listVideos);
 router.get('/videos/:id', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.getVideo);
