@@ -7,7 +7,6 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import CompleteProfile from './pages/CompleteProfile';
 import LocoLogo from './icons/icon26.png';
-import Game1 from './game/Game1';
 
 const Home = lazy(() => import('./pages/Home'));
 const LukoTV = lazy(() => import('./pages/LukoTV'));
@@ -31,7 +30,6 @@ const PageLoader = () => (
   </div>
 );
 
-// ✅ استفاده از Redirector به جای Navigate
 const Redirector = ({ to }) => {
   React.useEffect(() => {
     window.location.href = to;
@@ -39,7 +37,6 @@ const Redirector = ({ to }) => {
   return <PageLoader />;
 };
 
-// ✅ ProtectedRoute با Redirector
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useUser();
   
@@ -88,7 +85,6 @@ function AppContent() {
           <Route path="/school-panel" element={<ProtectedRoute allowedRoles={['school_manager']}><SchoolPanel /></ProtectedRoute>} />
           <Route path="/teacher-panel" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherPanel /></ProtectedRoute>} />
           
-          <Route path="/Game1" element={<Game1 />} />
           <Route path="*" element={<Redirector to="/" />} />
         </Routes>
       </Suspense>
