@@ -179,7 +179,7 @@ const BookGame = () => {
       </div>
 
       {/* دکمه شناور پایان بازی */}
-      {phase !== 'reward' && (
+      {/* {phase !== 'reward' && (
         <button
           onClick={handleFinish}
           disabled={phase === 'finishing'}
@@ -187,7 +187,7 @@ const BookGame = () => {
         >
           {phase === 'finishing' ? 'در حال ثبت...' : '✓ پایان بازی و دریافت سکه'}
         </button>
-      )}
+      )} */}
 
       {/* انیمیشن جایزه */}
       {phase === 'reward' && reward && (

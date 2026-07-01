@@ -38,15 +38,8 @@ import VideoCapitan from '../video/capitan.mp4';
 import VideoShabihsaz from '../video/shabihsaz.mp4';
 import VideoVadeakhar from '../video/vadeakhar.mp4';
 
-// ایمپورت دیتا ماموریت‌ها
-import {
-  getTodayMissions,
-  shouldResetMissions,
-  saveCompletedMissions,
-  getCompletedMissions,
-  registerVideoWatch,
-  hasWatchedVideoToday
-} from '../data/dailyMissionsData';
+// فقط برای گرفتن لیست base ماموریت‌ها
+import { getTodayMissions } from '../data/dailyMissionsData';
 
 // سرویس‌های باشگاه (سکه، جوایز، مدال، استریک)
 import { clubService } from '../services/task.service';
@@ -69,21 +62,11 @@ const LukoClub = () => {
         clubService.getBadges(),
         clubService.getStreak(),
       ]);
-      if (summaryRes.status === 'fulfilled' && summaryRes.value?.success) {
-        setCoins(summaryRes.value.data?.coins ?? 0);
-      }
-      if (rewardsRes.status === 'fulfilled' && rewardsRes.value?.success) {
-        setBackendRewards(rewardsRes.value.data || []);
-      }
-      if (badgesRes.status === 'fulfilled' && badgesRes.value?.success) {
-        setBackendBadges(badgesRes.value.data || []);
-      }
-      if (streakRes.status === 'fulfilled' && streakRes.value?.success) {
-        setBackendStreak(streakRes.value.data || null);
-      }
-    } catch (e) {
-      // در صورت خطا، مقادیر محلی نمایش داده می‌شوند
-    }
+      if (summaryRes.status === 'fulfilled' && summaryRes.value?.success) setCoins(summaryRes.value.data?.coins ?? 0);
+      if (rewardsRes.status === 'fulfilled' && rewardsRes.value?.success) setBackendRewards(rewardsRes.value.data || []);
+      if (badgesRes.status === 'fulfilled' && badgesRes.value?.success) setBackendBadges(badgesRes.value.data || []);
+      if (streakRes.status === 'fulfilled' && streakRes.value?.success) setBackendStreak(streakRes.value.data || null);
+    } catch (e) {}
   }, []);
 
   useEffect(() => { refreshClub(); }, [refreshClub]);
@@ -95,36 +78,24 @@ const LukoClub = () => {
     const persianDays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
     const todayStr = new Date().toISOString().split('T')[0];
     setStreakWeekDays(
-      backendStreak.week.map((d, i) => {
-        const dayName = persianDays[new Date(d.date).getDay()];
-        const isToday = d.date === todayStr;
-        return {
-          id: i + 1,
-          name: dayName,
-          status: isToday ? 'today' : (d.done ? 'passed' : 'future'),
-          isToday,
-          isPassed: d.done,
-        };
-      })
+      backendStreak.week.map((d, i) => ({
+        id: i + 1,
+        name: persianDays[new Date(d.date).getDay()],
+        status: d.date === todayStr ? 'today' : (d.done ? 'passed' : 'future'),
+        isToday: d.date === todayStr,
+        isPassed: d.done,
+      }))
     );
   }, [backendStreak]);
 
-  // سکه به‌عنوان واحد امتیاز فروشگاه
   const userXP = coins;
-  // ماموریت‌های محلی (UI موجود) بدون کرش
-  const completeTask = useCallback(() => {}, []);
-  const completeMission = useCallback(() => {}, []);
+  
   const purchaseItem = useCallback(async (rewardId) => {
     try {
       const res = await clubService.redeemReward(rewardId);
-      if (res?.success) {
-        setCoins(res.data?.coinBalance ?? coins);
-        return true;
-      }
+      if (res?.success) { setCoins(res.data?.coinBalance ?? coins); return true; }
       return false;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) { return false; }
   }, [coins]);
   
   const [activeNav, setActiveNav] = useState('لوکو کلاب');
@@ -133,37 +104,20 @@ const LukoClub = () => {
   const [todayMissionsList, setTodayMissionsList] = useState([]);
   const [mainMissionData, setMainMissionData] = useState(null);
   const [weekDays, setWeekDays] = useState([]);
-  const [localCompletedTasks, setLocalCompletedTasks] = useState([]);
+  
+  // استیت‌های همگام شده با صفحه اصلی (حافظه مشترک)
+  const [localCompletedTasks, setLocalCompletedTasks] = useState(() => JSON.parse(localStorage.getItem('luko_completed_tasks')) || []);
   const [localMissionCompleted, setLocalMissionCompleted] = useState(false);
   const [currentDay, setCurrentDay] = useState(1);
   
-  // State مودال ویدیو
-  const [videoModal, setVideoModal] = useState({
-    isOpen: false,
-    src: '',
-    title: '',
-    xp: 0,
-    missionId: null
-  });
+  const [videoModal, setVideoModal] = useState({ isOpen: false, src: '', title: '', xp: 0, missionId: null });
 
   const colors = {
-    primary: '#EEBD3D',
-    primaryDark: '#ECB735',
-    primaryLight: '#FEF0CB',
-    bg: '#FFFBFF',
-    cardBg: '#FFFFFF',
-    text: '#010101',
-    textSecondary: '#666666',
-    navBg: '#FFFFFF',
-    iconBg: '#FEECC6',
-    xpBg: '#F0C346',
-    streakBg: '#FEECC6',
-    streakBorder: '#C18E18',
-    streakPassed: '#F0A500',
-    streakTodayBg: '#FFFFFF',
-    streakOtherBg: 'transparent',
-    medalUnlockedBg: '#FEECC6',
-    medalLockedBg: '#E8E8E8'
+    primary: '#EEBD3D', primaryDark: '#ECB735', primaryLight: '#FEF0CB',
+    bg: '#FFFBFF', cardBg: '#FFFFFF', text: '#010101', textSecondary: '#666666',
+    navBg: '#FFFFFF', iconBg: '#FEECC6', xpBg: '#F0C346', streakBg: '#FEECC6',
+    streakBorder: '#C18E18', streakPassed: '#F0A500', streakTodayBg: '#FFFFFF',
+    streakOtherBg: 'transparent', medalUnlockedBg: '#FEECC6', medalLockedBg: '#E8E8E8'
   };
 
   useEffect(() => {
@@ -172,56 +126,37 @@ const LukoClub = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // بارگذاری روز جاری
   useEffect(() => {
     const savedDay = localStorage.getItem('luko_current_day');
-    if (savedDay) {
-      setCurrentDay(parseInt(savedDay));
-    } else {
-      setCurrentDay(1);
-      localStorage.setItem('luko_current_day', '1');
-    }
+    if (savedDay) setCurrentDay(parseInt(savedDay));
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('luko_current_day', currentDay);
-  }, [currentDay]);
+  useEffect(() => { localStorage.setItem('luko_current_day', currentDay); }, [currentDay]);
 
-  // بارگذاری ماموریت‌های امروز
+  // تابع استاندارد چک کردن ویدیو (دقیقاً مشابه Home)
+  const checkHasWatchedVideoToday = (title) => {
+    const today = new Date().toDateString();
+    const watchData = JSON.parse(localStorage.getItem('luko_watched_videos') || '{}');
+    return watchData[title] === today;
+  };
+
+  // بارگذاری و فیلتر کردن فقط فیلم‌ها
   useEffect(() => {
-    if (shouldResetMissions()) {
-      setLocalCompletedTasks([]);
-      setLocalMissionCompleted(false);
-      saveCompletedMissions([]);
-    } else {
-      const savedCompleted = getCompletedMissions();
-      setLocalCompletedTasks(savedCompleted);
-      const todayData = getTodayMissions();
-      if (savedCompleted.length === todayData.missions.length) {
-        setLocalMissionCompleted(true);
-      }
-    }
-    
     const todayData = getTodayMissions();
     
     const missionsWithIcons = todayData.missions.map(mission => {
       let iconSrc;
       switch(mission.icon) {
-        case 'Icon11': iconSrc = Icon11; break;
-        case 'Icon12': iconSrc = Icon12; break;
-        case 'Icon13': iconSrc = Icon13; break;
-        case 'Icon14': iconSrc = Icon14; break;
-        case 'Icon15': iconSrc = Icon15; break;
-        case 'Icon16': iconSrc = Icon16; break;
-        case 'Icon17': iconSrc = Icon17; break;
-        case 'Icon18': iconSrc = Icon18; break;
-        case 'Icon19': iconSrc = Icon19; break;
-        case 'Icon20': iconSrc = Icon20; break;
+        case 'Icon11': iconSrc = Icon11; break; case 'Icon12': iconSrc = Icon12; break;
+        case 'Icon13': iconSrc = Icon13; break; case 'Icon14': iconSrc = Icon14; break;
+        case 'Icon15': iconSrc = Icon15; break; case 'Icon16': iconSrc = Icon16; break;
+        case 'Icon17': iconSrc = Icon17; break; case 'Icon18': iconSrc = Icon18; break;
+        case 'Icon19': iconSrc = Icon19; break; case 'Icon20': iconSrc = Icon20; break;
         default: iconSrc = Icon12;
       }
       
       let videoSrc = null;
-      if (mission.type === 'video' && mission.videoTitle) {
+      if (mission.videoTitle) {
         switch(mission.videoTitle) {
           case 'کاپیتان': videoSrc = VideoCapitan; break;
           case 'شبیه ساز': videoSrc = VideoShabihsaz; break;
@@ -229,71 +164,45 @@ const LukoClub = () => {
           default: videoSrc = VideoCapitan;
         }
       }
-      
       return { ...mission, iconSrc, videoSrc };
     });
     
-    setTodayMissionsList(missionsWithIcons);
+    // *** فیلتر کردن حرفه ای: فقط تسک‌های ویدیویی رو نگه می‌داره ***
+    const videoOnlyMissions = missionsWithIcons.filter(m => m.type === 'video');
+    
+    setTodayMissionsList(videoOnlyMissions);
     setMainMissionData(todayData.mainMission);
     
-    // ساخت روزهای هفته با رنگ‌بندی درست بر اساس تاریخ امروز
-    const persianDays = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
-    
-    // محاسبه روز جاری به شمسی
-    const today = new Date();
-    const jsDay = today.getDay(); // 0=یکشنبه, 1=دوشنبه, 2=سه‌شنبه, 3=چهارشنبه, 4=پنجشنبه, 5=جمعه, 6=شنبه
-    
-    let persianTodayIndex;
-    if (jsDay === 6) {
-      persianTodayIndex = 0; // شنبه
-    } else if (jsDay === 0) {
-      persianTodayIndex = 1; // یکشنبه
-    } else if (jsDay === 1) {
-      persianTodayIndex = 2; // دوشنبه
-    } else if (jsDay === 2) {
-      persianTodayIndex = 3; // سه‌شنبه
-    } else if (jsDay === 3) {
-      persianTodayIndex = 4; // چهارشنبه
-    } else if (jsDay === 4) {
-      persianTodayIndex = 5; // پنجشنبه
-    } else {
-      persianTodayIndex = 6; // جمعه
+    if (localCompletedTasks.length === videoOnlyMissions.length && videoOnlyMissions.length > 0) {
+      setLocalMissionCompleted(true);
     }
+    
+    // ساخت روزهای هفته
+    const persianDays = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+    const today = new Date();
+    const jsDay = today.getDay(); 
+    let persianTodayIndex;
+    if (jsDay === 6) persianTodayIndex = 0;
+    else if (jsDay === 0) persianTodayIndex = 1;
+    else if (jsDay === 1) persianTodayIndex = 2;
+    else if (jsDay === 2) persianTodayIndex = 3;
+    else if (jsDay === 3) persianTodayIndex = 4;
+    else if (jsDay === 4) persianTodayIndex = 5;
+    else persianTodayIndex = 6;
     
     setWeekDays(persianDays.map((name, index) => {
       let status = 'future';
-      if (index === persianTodayIndex) {
-        status = 'today';
-      } else if (index < persianTodayIndex) {
-        status = 'passed';
-      }
-      
-      return {
-        id: index + 1,
-        name,
-        status,
-        isToday: status === 'today',
-        isPassed: status === 'passed'
-      };
+      if (index === persianTodayIndex) status = 'today';
+      else if (index < persianTodayIndex) status = 'passed';
+      return { id: index + 1, name, status, isToday: status === 'today', isPassed: status === 'passed' };
     }));
-  }, []);
+  }, [localCompletedTasks]);
 
   const isMobile = windowWidth < 768;
   const isDesktop = windowWidth >= 1024;
   
-  // نام نمایشی بدون @
-  const displayName = user?.username?.replace('@', '') || user?.name || 'کاربر';
+  const currentDayName = currentDay === 1 ? 'روز اول' : currentDay === 2 ? 'روز دوم' : currentDay === 3 ? 'روز سوم' : currentDay === 4 ? 'روز چهارم' : currentDay === 5 ? 'روز پنجم' : currentDay === 6 ? 'روز ششم' : currentDay === 7 ? 'روز هفتم' : `روز ${currentDay}`;
   
-  const currentDayName = 
-    currentDay === 1 ? 'روز اول' :
-    currentDay === 2 ? 'روز دوم' :
-    currentDay === 3 ? 'روز سوم' :
-    currentDay === 4 ? 'روز چهارم' :
-    currentDay === 5 ? 'روز پنجم' :
-    currentDay === 6 ? 'روز ششم' :
-    currentDay === 7 ? 'روز هفتم' : `روز ${currentDay}`;
-  
-  // پیشرفت بر اساس تعداد تسک‌های انجام شده
   const tasksCompletedCount = localCompletedTasks.length;
   const totalTasksCount = todayMissionsList.length;
   const progressPercent = totalTasksCount > 0 ? (tasksCompletedCount / totalTasksCount) * 100 : 0;
@@ -305,19 +214,12 @@ const LukoClub = () => {
     { id: 3, title: 'پس زمینه ویژه', icon: Icon19, price: 100, description: 'تم اختصاصی برنامه' },
     { id: 4, title: 'استیکر ویژه', icon: Icon20, price: 120, description: 'استیکر لوکو' }
   ];
-  // جوایز از بک‌اند (در صورت موجود بودن) با آیکون محلی
-  const rewards = backendRewards
-    ? backendRewards.map((r, i) => ({
-        id: r.id,
-        title: r.title,
-        icon: REWARD_ICONS[i % REWARD_ICONS.length],
-        price: r.cost_coins,
-        description: r.description || '',
-      }))
-    : fallbackRewards;
+  const rewards = backendRewards ? backendRewards.map((r, i) => ({ id: r.id, title: r.title, icon: REWARD_ICONS[i % REWARD_ICONS.length], price: r.cost_coins, description: r.description || '' })) : fallbackRewards;
 
-  // مدال‌ها — از نشان‌های بک‌اند یا حالت محلی
   const MEDAL_ICONS = [Icon15, Icon16, Icon17, Icon18, Icon11, Icon12, Icon13, Icon14];
+  // خواندن XP محلی برای همگام شدن با پروفایل
+  const localXP = parseInt(localStorage.getItem('luko_user_xp')) || 0;
+
   const fallbackMedals = [
     { id: 1, name: 'مدال ریاضی', icon: Icon15, xpRequired: 200 },
     { id: 2, name: 'مدال علوم', icon: Icon16, xpRequired: 300 },
@@ -327,93 +229,74 @@ const LukoClub = () => {
     { id: 6, name: 'مدال موسیقی', icon: Icon12, xpRequired: 700 },
     { id: 7, name: 'مدال برنامه‌نویسی', icon: Icon13, xpRequired: 800 },
     { id: 8, name: 'مدال رهبری', icon: Icon14, xpRequired: 900 }
-  ].map(medal => ({ ...medal, earned: userXP >= medal.xpRequired }));
+  ].map(medal => ({ ...medal, earned: localXP >= medal.xpRequired }));
 
-  const medals = backendBadges && backendBadges.length > 0
-    ? backendBadges.map((b, i) => ({
-        id: b.id,
-        name: b.name_fa,
-        icon: MEDAL_ICONS[i % MEDAL_ICONS.length],
-        xpRequired: b.criteria_value,
-        earned: !!b.earned,
-      }))
-    : fallbackMedals;
+  const medals = backendBadges && backendBadges.length > 0 ? backendBadges.map((b, i) => ({ id: b.id, name: b.name_fa, icon: MEDAL_ICONS[i % MEDAL_ICONS.length], xpRequired: b.criteria_value, earned: !!b.earned })) : fallbackMedals;
 
   const purchasedItems = JSON.parse(localStorage.getItem('lukoClubPurchased') || '[]');
 
   const openVideoModal = (missionId, videoSrc, videoTitle, xpAmount) => {
-    if (hasWatchedVideoToday(videoTitle)) {
+    if (checkHasWatchedVideoToday(videoTitle)) {
       alert('شما امروز این ویدیو را قبلاً تماشا کرده‌اید');
       return;
     }
     setVideoModal({ isOpen: true, src: videoSrc, title: videoTitle, xp: xpAmount, missionId });
   };
 
-  const closeVideoModal = () => {
-    setVideoModal({ isOpen: false, src: '', title: '', xp: 0, missionId: null });
-  };
+  const closeVideoModal = () => setVideoModal({ isOpen: false, src: '', title: '', xp: 0, missionId: null });
 
   const handleVideoEnded = () => {
-    const success = registerVideoWatch(videoModal.title, videoModal.xp);
-    
-    if (success) {
-      completeTask(videoModal.missionId, videoModal.xp);
+    const today = new Date().toDateString();
+    const watchData = JSON.parse(localStorage.getItem('luko_watched_videos') || '{}');
+    watchData[videoModal.title] = today;
+    localStorage.setItem('luko_watched_videos', JSON.stringify(watchData));
+
+    if (!localCompletedTasks.includes(videoModal.missionId)) {
       const newCompleted = [...localCompletedTasks, videoModal.missionId];
       setLocalCompletedTasks(newCompleted);
-      saveCompletedMissions(newCompleted);
+      localStorage.setItem('luko_completed_tasks', JSON.stringify(newCompleted));
       
-      if (newCompleted.length === todayMissionsList.length) {
-        setLocalMissionCompleted(true);
-      }
-      
-      alert(`${videoModal.xp} XP دریافت کردی`);
-      closeVideoModal();
-    } else {
-      alert('شما قبلاً این ویدیو را امروز تماشا کرده‌اید');
-      closeVideoModal();
+      const currentHomeXP = parseInt(localStorage.getItem('luko_user_xp')) || 350;
+      localStorage.setItem('luko_user_xp', (currentHomeXP + videoModal.xp).toString());
+
+      if (newCompleted.length === todayMissionsList.length) setLocalMissionCompleted(true);
     }
+    alert(`${videoModal.xp} XP دریافت کردی`);
+    closeVideoModal();
   };
 
   const handleNonVideoMission = (missionId, xpAmount) => {
     if (localCompletedTasks.includes(missionId)) return;
-    
-    completeTask(missionId, xpAmount);
     const newCompleted = [...localCompletedTasks, missionId];
     setLocalCompletedTasks(newCompleted);
-    saveCompletedMissions(newCompleted);
+    localStorage.setItem('luko_completed_tasks', JSON.stringify(newCompleted));
     
-    if (newCompleted.length === todayMissionsList.length) {
-      setLocalMissionCompleted(true);
-    }
+    const currentHomeXP = parseInt(localStorage.getItem('luko_user_xp')) || 350;
+    localStorage.setItem('luko_user_xp', (currentHomeXP + xpAmount).toString());
+
+    if (newCompleted.length === todayMissionsList.length) setLocalMissionCompleted(true);
   };
 
   const handleCompleteMainMission = () => {
     if (!localMissionCompleted && mainMissionData) {
-      completeMission();
       setLocalMissionCompleted(true);
-      
       setTimeout(() => {
         setCurrentDay(prev => prev + 1);
         localStorage.setItem('luko_current_day', currentDay + 1);
+        setLocalCompletedTasks([]);
+        localStorage.setItem('luko_completed_tasks', JSON.stringify([]));
       }, 100);
     }
   };
 
   const handlePurchaseReward = async (rewardId, price) => {
-    if (userXP < price) {
-      alert(`سکه کافی نیست؛ به ${price} سکه نیاز داری`);
-      return;
-    }
+    if (userXP < price) { alert(`سکه کافی نیست؛ به ${price} سکه نیاز داری`); return; }
     const success = await purchaseItem(rewardId, price);
     if (success) {
       const purchased = JSON.parse(localStorage.getItem('lukoClubPurchased') || '[]');
-      if (!purchased.includes(rewardId)) {
-        localStorage.setItem('lukoClubPurchased', JSON.stringify([...purchased, rewardId]));
-      }
+      if (!purchased.includes(rewardId)) localStorage.setItem('lukoClubPurchased', JSON.stringify([...purchased, rewardId]));
       alert('جایزه با موفقیت دریافت شد');
-    } else {
-      alert('خطا در دریافت جایزه');
-    }
+    } else { alert('خطا در دریافت جایزه'); }
   };
 
   const navItems = [
@@ -425,77 +308,24 @@ const LukoClub = () => {
   ];
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: colors.bg,
-      fontFamily: "'Shoor', 'Shoor Rounded', sans-serif",
-      direction: 'rtl',
-      paddingBottom: '80px'
-    }}>
-<Header
-  title="لوکو کلاب"
-  avatar={user?.avatar}
-  isMobile={isMobile}
-  colors={colors}
-  pressedItem={pressedItem}
-  setPressedItem={setPressedItem}
-  onProfileClick={() => navigate('/profile')}
-/>
+    <div style={{ minHeight: '100vh', background: colors.bg, fontFamily: "'Shoor', 'Shoor Rounded', sans-serif", direction: 'rtl', paddingBottom: '80px' }}>
+      <Header title="لوکو کلاب" avatar={user?.avatar} isMobile={isMobile} colors={colors} pressedItem={pressedItem} setPressedItem={setPressedItem} onProfileClick={() => navigate('/profile')} />
 
-      <div style={{
-        maxWidth: isDesktop ? '1200px' : '100%',
-        margin: '0 auto',
-        padding: isMobile ? '20px 16px' : '32px 24px'
-      }}>
+      <div style={{ maxWidth: isDesktop ? '1200px' : '100%', margin: '0 auto', padding: isMobile ? '20px 16px' : '32px 24px' }}>
         
-        {/* بخش روز */}
-        <div style={{
-          backgroundColor: colors.primaryLight,
-          width: isMobile ? '90%' : '50%',
-          display: 'flex',
-          alignItems: 'center',
-          margin: '0 0 20px 0',
-          padding: '8px 16px',
-          borderRadius: '24px',
-          boxShadow: '0 6px 15px rgba(0,0,0,0.12)'
-        }}>
-          <div style={{
-            backgroundColor: colors.primaryDark,
-            borderRadius: '50%',
-            padding: '10px',
-            width: '36px',
-            height: '36px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginLeft: '12px'
-          }}>
+        <div style={{ backgroundColor: colors.primaryLight, width: isMobile ? '90%' : '50%', display: 'flex', alignItems: 'center', margin: '0 0 20px 0', padding: '8px 16px', borderRadius: '24px', boxShadow: '0 6px 15px rgba(0,0,0,0.12)' }}>
+          <div style={{ backgroundColor: colors.primaryDark, borderRadius: '50%', padding: '10px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '12px' }}>
             <span style={{ color: 'white', fontWeight: 'bold', fontSize: '16px' }}>{currentDay}</span>
           </div>
-          <div>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: colors.text }}>
-              {currentDayName}
-            </p>
-          </div>
+          <div><p style={{ fontSize: '14px', fontWeight: '600', color: colors.text }}>{currentDayName}</p></div>
         </div>
 
-        <DayCard
-          currentDay={currentDay}
-          currentDayName={currentDayName}
-          tasksCompletedCount={tasksCompletedCount}
-          totalTasksCount={totalTasksCount}
-          progressPercent={progressPercent}
-          localMissionCompleted={localMissionCompleted}
-          mainMissionData={mainMissionData}
-          onCompleteMainMission={handleCompleteMainMission}
-          colors={colors}
-          isMobile={isMobile}
-        />
+        <DayCard currentDay={currentDay} currentDayName={currentDayName} tasksCompletedCount={tasksCompletedCount} totalTasksCount={totalTasksCount} progressPercent={progressPercent} localMissionCompleted={localMissionCompleted} mainMissionData={mainMissionData} onCompleteMainMission={handleCompleteMainMission} colors={colors} isMobile={isMobile} />
 
         <DailyMissions
           missions={todayMissionsList}
           completedTasks={localCompletedTasks}
-          hasWatchedVideoToday={hasWatchedVideoToday}
+          hasWatchedVideoToday={checkHasWatchedVideoToday}
           onVideoClick={openVideoModal}
           onNonVideoClick={handleNonVideoMission}
           colors={colors}
@@ -505,40 +335,13 @@ const LukoClub = () => {
         />
 
         <WeekStreak weekDays={streakWeekDays || weekDays} colors={colors} isMobile={isMobile} />
-
         <MedalsSection medals={medals} colors={colors} isMobile={isMobile} />
-
-        <ShopSection
-          rewards={rewards}
-          purchasedItems={purchasedItems}
-          onPurchase={handlePurchaseReward}
-          colors={colors}
-          isMobile={isMobile}
-          pressedItem={pressedItem}
-          setPressedItem={setPressedItem}
-        />
+        <ShopSection rewards={rewards} purchasedItems={purchasedItems} onPurchase={handlePurchaseReward} colors={colors} isMobile={isMobile} pressedItem={pressedItem} setPressedItem={setPressedItem} />
       </div>
 
-      <VideoModal
-        isOpen={videoModal.isOpen}
-        videoSrc={videoModal.src}
-        videoTitle={videoModal.title}
-        videoXp={videoModal.xp}
-        colors={colors}
-        onClose={closeVideoModal}
-        onVideoEnded={handleVideoEnded}
-      />
+      <VideoModal isOpen={videoModal.isOpen} videoSrc={videoModal.src} videoTitle={videoModal.title} videoXp={videoModal.xp} colors={colors} onClose={closeVideoModal} onVideoEnded={handleVideoEnded} />
 
-      <NavigationBar
-        navItems={navItems}
-        activeNav={activeNav}
-        setActiveNav={setActiveNav}
-        isMobile={isMobile}
-        colors={colors}
-        onNavigate={navigate}
-        setPressedItem={setPressedItem}
-        pressedItem={pressedItem}
-      />
+      <NavigationBar navItems={navItems} activeNav={activeNav} setActiveNav={setActiveNav} isMobile={isMobile} colors={colors} onNavigate={navigate} setPressedItem={setPressedItem} pressedItem={pressedItem} />
 
       <style>{`
         ::-webkit-scrollbar { display: none; }
