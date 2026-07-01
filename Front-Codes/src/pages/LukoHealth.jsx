@@ -160,7 +160,7 @@ const LukoHealth = () => {
     }}>
       
       {/* App Shell Container for Desktop/Tablet */}
-      <div style={{ width: '100%', maxWidth: '600px', position: 'relative' }}>
+      <div style={{ width: '100%', maxWidth: 'min(600px, 100%)', position: 'relative' }}>
         
         <Header 
           title="سلامت لوکو" 

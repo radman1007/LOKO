@@ -71,7 +71,7 @@ const Home = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: "#f2f2f2fb", fontFamily: "'Shoor', 'Shoor Rounded', sans-serif", direction: 'rtl', paddingBottom: '80px', display: 'flex', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: 'min(600px, 100%)', padding: 'clamp(12px, 3vw, 20px) clamp(12px, 3vw, 16px) 80px clamp(12px, 3vw, 16px)' }}>
+      <div style={{ width: '100%', maxWidth: 'min(600px, 100%)' }}>
         <Header
           user={user}
           showGreeting
@@ -83,11 +83,13 @@ const Home = () => {
             </div>
           }
         />
-        <UserInfoCard user={user} colors={colors} onPress={handleClick} pressedItem={pressedItem} />
-        <LukoTVSection videos={lukoVideos} onPress={handleClick} pressedItem={pressedItem} colors={colors} />
-        <LukoPadkast onPress={handleClick} pressedItem={pressedItem} />
-        <LukoClubCard missions={todayVideoMissions} completedTasks={completedTasks} hasWatchedVideoToday={hasWatchedVideoToday} onCardClick={() => navigate('/luko-club')} />
-        <BooksSection books={books} onPress={handleClick} pressedItem={pressedItem} colors={colors} />
+        <div style={{ padding: '4px clamp(12px, 3vw, 16px) 80px' }}>
+          <UserInfoCard user={user} colors={colors} onPress={handleClick} pressedItem={pressedItem} />
+          <LukoTVSection videos={lukoVideos} onPress={handleClick} pressedItem={pressedItem} colors={colors} />
+          <LukoPadkast onPress={handleClick} pressedItem={pressedItem} />
+          <LukoClubCard missions={todayVideoMissions} completedTasks={completedTasks} hasWatchedVideoToday={hasWatchedVideoToday} onCardClick={() => navigate('/luko-club')} />
+          <BooksSection books={books} onPress={handleClick} pressedItem={pressedItem} colors={colors} />
+        </div>
       </div>
 
       <MoodModal isOpen={showMoodModal} moodOptions={moodOptions} onSelectMood={handleMoodSelect} onDismiss={dismissReminder} />
