@@ -43,6 +43,7 @@ import { getTodayMissions } from '../data/dailyMissionsData';
 
 // سرویس‌های باشگاه (سکه، جوایز، مدال، استریک)
 import { clubService } from '../services/task.service';
+import { getGuestCoins, addGuestCoins } from '../data/guestData';
 
 const LukoClub = () => {
   const navigate = useNavigate();
@@ -55,6 +56,11 @@ const LukoClub = () => {
   const [backendStreak, setBackendStreak] = useState(null);
 
   const refreshClub = useCallback(async () => {
+    // حالت مهمان: بدون درخواست سرور، سکه از حافظه‌ی محلی و بقیه از داده‌ی محلی
+    if (user?.isGuest) {
+      setCoins(getGuestCoins());
+      return;
+    }
     try {
       const [summaryRes, rewardsRes, badgesRes, streakRes] = await Promise.allSettled([
         clubService.getSummary(),
@@ -67,7 +73,7 @@ const LukoClub = () => {
       if (badgesRes.status === 'fulfilled' && badgesRes.value?.success) setBackendBadges(badgesRes.value.data || []);
       if (streakRes.status === 'fulfilled' && streakRes.value?.success) setBackendStreak(streakRes.value.data || null);
     } catch (e) {}
-  }, []);
+  }, [user]);
 
   useEffect(() => { refreshClub(); }, [refreshClub]);
 
@@ -90,13 +96,21 @@ const LukoClub = () => {
 
   const userXP = coins;
   
-  const purchaseItem = useCallback(async (rewardId) => {
+  const purchaseItem = useCallback(async (rewardId, price = 0) => {
+    // حالت مهمان: کسر محلی سکه
+    if (user?.isGuest) {
+      const current = getGuestCoins();
+      if (price > current) return false;
+      const balance = addGuestCoins(-price);
+      setCoins(balance);
+      return true;
+    }
     try {
       const res = await clubService.redeemReward(rewardId);
       if (res?.success) { setCoins(res.data?.coinBalance ?? coins); return true; }
       return false;
     } catch (e) { return false; }
-  }, [coins]);
+  }, [coins, user]);
   
   const [activeNav, setActiveNav] = useState('لوکو کلاب');
   const [pressedItem, setPressedItem] = useState(null);

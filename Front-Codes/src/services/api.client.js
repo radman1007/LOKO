@@ -54,6 +54,15 @@ apiClient.interceptors.response.use(
 
     log('❌', error.response?.status, originalRequest?.url, error.response?.data);
 
+    // کاربر مهمان توکن ندارد؛ نباید با هر 401 به صفحه‌ی ورود هدایت شود
+    let isGuestUser = false;
+    try {
+      isGuestUser = !!JSON.parse(localStorage.getItem('user') || 'null')?.isGuest;
+    } catch (e) { /* ignore */ }
+    if (isGuestUser) {
+      return Promise.reject(error);
+    }
+
     // مسیرهای auth نباید وارد چرخه refresh شوند
     const isAuthPath =
       originalRequest?.url?.includes('/auth/login') ||

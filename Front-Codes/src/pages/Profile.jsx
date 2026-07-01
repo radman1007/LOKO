@@ -428,7 +428,7 @@ const Profile = () => {
       )}
 
       {/* Navigation Bar */}
-      <div style={{ position: 'fixed', bottom: 0, right: 0, left: 0, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', boxShadow: '0 -5px 20px rgba(0,0,0,0.05)', borderRadius: '28px 28px 0 0', padding: '10px 0', display: 'flex', justifyContent: 'space-around', alignItems: 'center', zIndex: 100 }}>
+      <div style={{ position: 'fixed', bottom: 0, right: 0, left: 0, background: colors.cardBg, boxShadow: '0 -2px 20px rgba(0,0,0,0.08)', borderRadius: '28px 28px 0 0', padding: isMobile ? '10px 12px' : '12px 20px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', zIndex: 100, maxWidth: '1200px', margin: '0 auto' }}>
         {navItems.map(item => {
           const Icon = item.icon;
           const isActive = item.id === 'پروفایل';
@@ -436,14 +436,14 @@ const Profile = () => {
             <div
               key={item.id}
               onClick={() => navigate(item.path)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer', transition: 'transform 0.1s' }}
-              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer', transition: 'transform 0.05s linear' }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
               onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
             >
-              <Icon size={22} color={isActive ? colors.primary : '#BDBDBD'} />
-              <span style={{ fontSize: '10px', color: isActive ? colors.primary : '#BDBDBD', fontWeight: isActive ? '700' : '400' }}>{item.name}</span>
-              {isActive && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: colors.primary, marginTop: '2px' }} />}
+              <Icon size={isMobile ? 20 : 22} color={isActive ? colors.primary : '#999'} />
+              <span style={{ fontSize: isMobile ? '9px' : '10px', color: isActive ? colors.primary : '#999', fontWeight: isActive ? '600' : '400' }}>{item.name}</span>
+              {isActive && <div style={{ width: '4px', height: '4px', borderRadius: '2px', background: colors.primary, marginTop: '2px' }} />}
             </div>
           );
         })}
