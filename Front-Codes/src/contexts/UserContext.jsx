@@ -1,6 +1,7 @@
 // src/contexts/UserContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/auth.service';
+import { GUEST_USER, resetGuestData } from '../data/guestData';
 
 const UserContext = createContext();
 
@@ -29,9 +30,25 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  // ====== ورود به عنوان مهمان (بدون حساب) ======
+  const loginAsGuest = () => {
+    // پاک‌سازی توکن‌های احتمالی قبلی تا درخواست‌های احراز هویت‌دار زده نشوند
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    resetGuestData();
+    localStorage.setItem('user', JSON.stringify(GUEST_USER));
+    setUser(GUEST_USER);
+    return { success: true, user: GUEST_USER };
+  };
+
   // ====== خروج ======
   const logout = async () => {
-    await authService.logout();
+    if (!user?.isGuest) {
+      await authService.logout();
+    } else {
+      localStorage.removeItem('user');
+      resetGuestData();
+    }
     setUser(null);
   };
 
@@ -52,10 +69,11 @@ export const UserProvider = ({ children }) => {
   };
 
   return (
-    <UserContext.Provider value={{ 
-      user, 
-      loading, 
-      login, 
+    <UserContext.Provider value={{
+      user,
+      loading,
+      login,
+      loginAsGuest,
       logout,
       updateUser,
       setUser

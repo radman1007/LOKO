@@ -4,6 +4,8 @@ import { useUser } from '../contexts/UserContext';
 import { HiOutlineHome, HiOutlineUser, HiOutlineFire, HiOutlinePlay, HiOutlineHeart } from 'react-icons/hi';
 import { bookService } from '../services/book.service';
 import { clubService } from '../services/task.service';
+import { GUEST_BOOKS, GUEST_CLASSES, getGuestCoins } from '../data/guestData';
+import Toast from '../components/common/Toast';
 import BookIcon from '../icons/icon7.png';
 import BookCover1 from '../icons/icon30.png';
 import BookCover2 from '../icons/icon31.png';
@@ -22,6 +24,7 @@ const Books = () => {
   const [books, setBooks] = useState([]);
   const [classes, setClasses] = useState([]);
   const [coins, setCoins] = useState(0);
+  const [toast, setToast] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { document.title = 'LocoLearn - کتاب‌ها'; }, []);
@@ -34,6 +37,16 @@ const Books = () => {
 
   useEffect(() => {
     let mounted = true;
+
+    // حالت مهمان: داده‌ی دموی کلاس اول
+    if (user?.isGuest) {
+      setBooks(GUEST_BOOKS);
+      setClasses(GUEST_CLASSES);
+      setCoins(getGuestCoins());
+      setLoading(false);
+      return () => { mounted = false; };
+    }
+
     (async () => {
       try {
         const [booksRes, classesRes, coinsRes] = await Promise.allSettled([
@@ -58,7 +71,7 @@ const Books = () => {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [user]);
 
   const isMobile = windowWidth < 768;
   const isDesktop = windowWidth >= 1024;
@@ -78,6 +91,17 @@ const Books = () => {
     setTimeout(() => { setPressedItem(null); navigate(path); }, 100);
   };
 
+  // کلیک روی کتاب: اگر بازی داشته باشد لیست بازی‌ها، وگرنه نوتیفیکیشن
+  const handleBookClick = (book) => {
+    const gameCount = user?.isGuest ? (book.games?.length || 0) : (book.game_count || 0);
+    if (gameCount > 0) {
+      setPressedItem(book.id);
+      setTimeout(() => { setPressedItem(null); navigate(`/book/${book.id}`); }, 100);
+    } else {
+      setToast('هنوز هیچ بازی‌ای برای این کتاب ثبت نشده است.');
+    }
+  };
+
   const coverFor = (book, index) => {
     if (book.cover_url && /^https?:\/\//.test(book.cover_url)) return book.cover_url;
     return FALLBACK_COVERS[index % FALLBACK_COVERS.length];
@@ -89,6 +113,7 @@ const Books = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: colors.bg, fontFamily: "'Shoor', 'Shoor Rounded', sans-serif", direction: 'rtl', paddingBottom: '80px' }}>
+      <Toast message={toast} type="info" duration={3000} onClose={() => setToast('')} />
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: colors.cardBg, padding: isMobile ? '16px 16px' : '20px 24px', borderBottom: `1px solid ${colors.primary}30`, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: isDesktop ? '1200px' : '100%', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -123,7 +148,7 @@ const Books = () => {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '20px' }}>
             {books.map((book, index) => (
-              <div key={book.id} onClick={() => handleClick(`/book/${book.id}`, book.id)} style={{ cursor: 'pointer', transition: 'transform 0.08s linear', transform: pressedItem === book.id ? 'scale(0.97)' : 'scale(1)' }}>
+              <div key={book.id} onClick={() => handleBookClick(book)} style={{ cursor: 'pointer', transition: 'transform 0.08s linear', transform: pressedItem === book.id ? 'scale(0.97)' : 'scale(1)' }}>
                 <div style={{ background: colors.cardBg, borderRadius: '20px', padding: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
                   <div style={{ width: '100%', aspectRatio: '2/3', borderRadius: '16px', overflow: 'hidden', marginBottom: '12px', backgroundColor: colors.primary + '20' }}>
                     <img
@@ -134,9 +159,14 @@ const Books = () => {
                     />
                   </div>
                   <p style={{ fontSize: '14px', fontWeight: '600', color: colors.text }}>{book.title}</p>
-                  {book.coin_reward > 0 && (
-                    <p style={{ fontSize: '12px', color: colors.coin, marginTop: '4px', fontWeight: '600' }}>🪙 {book.coin_reward} سکه</p>
-                  )}
+                  {(() => {
+                    const gc = user?.isGuest ? (book.games?.length || 0) : (book.game_count || 0);
+                    return gc > 0 ? (
+                      <p style={{ fontSize: '12px', color: colors.primary, marginTop: '4px', fontWeight: '600' }}>🎮 {gc} بازی</p>
+                    ) : (
+                      <p style={{ fontSize: '12px', color: '#B0BEC5', marginTop: '4px', fontWeight: '600' }}>بدون بازی</p>
+                    );
+                  })()}
                 </div>
               </div>
             ))}

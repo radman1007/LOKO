@@ -2,7 +2,7 @@
 import apiClient from './api.client';
 
 export const bookService = {
-  // کتاب‌های دانش‌آموز جاری (بر اساس کلاس‌های او)
+  // کتاب‌های دانش‌آموز جاری (بر اساس کلاس‌های او) — شامل game_count
   getMyBooks: async () => {
     const response = await apiClient.get('/books/my');
     return response.data;
@@ -12,19 +12,24 @@ export const bookService = {
     const response = await apiClient.get('/classes/my');
     return response.data;
   },
-  // جزئیات یک کتاب + اطلاعات بازی
+  // جزئیات یک کتاب
   getBook: async (id) => {
     const response = await apiClient.get(`/books/${id}`);
     return response.data;
   },
-  // اطلاعات بازی یک کتاب
-  getBookGame: async (id) => {
-    const response = await apiClient.get(`/books/${id}/game`);
+  // لیست بازی‌های یک کتاب
+  getBookGames: async (bookId) => {
+    const response = await apiClient.get(`/books/${bookId}/games`);
     return response.data;
   },
-  // ثبت پایان بازی و دریافت سکه
-  completeGame: async (bookId, payload = {}) => {
-    const response = await apiClient.post(`/books/${bookId}/game/complete`, payload);
+  // اطلاعات یک بازی مشخص برای پخش
+  getGame: async (gameId) => {
+    const response = await apiClient.get(`/games/${gameId}`);
+    return response.data;
+  },
+  // ثبت پایان یک بازی و دریافت سکه
+  completeGame: async (gameId, payload = {}) => {
+    const response = await apiClient.post(`/games/${gameId}/complete`, payload);
     return response.data;
   },
 };

@@ -5,7 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import Logo from '../icons/icon26.png';
 
 const Login = () => {
-  const { login, user, loading } = useUser();
+  const { login, loginAsGuest, user, loading } = useUser();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState('');
@@ -91,6 +91,11 @@ const Login = () => {
     }
 
     setIsLoading(false);
+  };
+
+  const handleGuest = () => {
+    loginAsGuest();
+    navigate('/', { replace: true });
   };
 
   // تا زمان هدایت چیزی نمایش نده
@@ -295,6 +300,35 @@ const Login = () => {
         >
           {isLoading ? 'در حال ورود...' : 'ورود به لوکو'}
         </button>
+
+        {/* جداکننده */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '18px 0' }}>
+          <div style={{ flex: 1, height: '1px', background: '#E0E0E0' }} />
+          <span style={{ fontSize: '12px', color: colors.textSecondary }}>یا</span>
+          <div style={{ flex: 1, height: '1px', background: '#E0E0E0' }} />
+        </div>
+
+        {/* ورود به عنوان مهمان */}
+        <button
+          onClick={handleGuest}
+          disabled={isLoading}
+          style={{
+            width: '100%',
+            padding: '14px',
+            background: 'transparent',
+            color: colors.primary,
+            border: `2px solid ${colors.primary}`,
+            borderRadius: '20px',
+            fontSize: '15px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
+          🚀 ورود به عنوان مهمان
+        </button>
+        <p style={{ textAlign: 'center', fontSize: '11px', color: colors.textSecondary, marginTop: '8px' }}>
+          بدون ثبت‌نام، محصول را با محتوای نمونه‌ی کلاس اول تجربه کن
+        </p>
 
         <div style={{ textAlign: 'center', marginTop: '16px' }}>
           <Link

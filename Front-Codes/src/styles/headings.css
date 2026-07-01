@@ -1,0 +1,65 @@
+/* ============================================================
+   سیستم تایپوگرافی یکپارچه‌ی تیترها (Heading Design System)
+   یک هویت بصری واحد برای تمام سرتیترهای پروژه.
+   با !important استایل‌های inline پراکنده را override و استاندارد می‌کند.
+   - فونت ثابت: Shoor (فونت اصلی برنامه)
+   - مقیاس اندازه‌ی ثابت و هماهنگ در همه‌ی صفحات
+   - وزن، فاصله و line-height یکدست
+   رنگ و ترازِ متن عمداً override نمی‌شوند تا رنگ‌های برند و
+   تیترهای عمداً وسط‌چین (مثل کارت ورود) حفظ شوند.
+   ============================================================ */
+
+:root {
+  --loko-heading-font: 'Shoor', 'Shoor Rounded', 'Vazir', 'IRANSans',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --loko-h1-size: 22px;
+  --loko-h2-size: 18px;
+  --loko-h3-size: 15px;
+
+  --loko-h1-weight: 800;
+  --loko-h2-weight: 700;
+  --loko-h3-weight: 700;
+}
+
+/* پایه‌ی مشترک همه‌ی تیترها */
+h1, h2, h3, h4, h5, h6,
+.loko-h1, .loko-h2, .loko-h3 {
+  font-family: var(--loko-heading-font) !important;
+  letter-spacing: 0 !important;
+  margin: 0;
+  padding: 0;
+}
+
+/* تیتر اصلی صفحه (عنوان هدر) */
+h1,
+.loko-h1 {
+  font-size: var(--loko-h1-size) !important;
+  font-weight: var(--loko-h1-weight) !important;
+  line-height: 1.5 !important;
+}
+
+/* تیتر بخش */
+h2,
+.loko-h2 {
+  font-size: var(--loko-h2-size) !important;
+  font-weight: var(--loko-h2-weight) !important;
+  line-height: 1.5 !important;
+}
+
+/* زیرتیتر */
+h3, h4, h5, h6,
+.loko-h3 {
+  font-size: var(--loko-h3-size) !important;
+  font-weight: var(--loko-h3-weight) !important;
+  line-height: 1.6 !important;
+}
+
+/* نسخه‌ی دسکتاپ: کمی بزرگ‌تر برای تعادل بصری بهتر */
+@media (min-width: 1024px) {
+  :root {
+    --loko-h1-size: 24px;
+    --loko-h2-size: 19px;
+    --loko-h3-size: 16px;
+  }
+}

@@ -3,7 +3,8 @@ import {
   HiOutlineBell,
 } from 'react-icons/hi';
 
-import Icon11 from '../../icons/icon53.png';
+import Icon11 from '../../icons/icon55.png';
+import Icon56 from '../../icons/icon56.png';
 
 /* =========================
    MERGED SHAPE
@@ -157,7 +158,7 @@ const UserInfoCard = ({
             }}
           >
             <img
-              src={user?.avatar || Icon11}
+              src={user?.avatar || Icon56}
               alt="avatar"
               style={{
                 width: '100%',
@@ -422,7 +423,7 @@ const UserInfoCard = ({
                 marginBottom: 6,
               }}
             >
-              کلاس امروز منتظرته 
+              آماده‌ای امروز بترکونیم؟
             </p>
 
             <div
@@ -433,7 +434,7 @@ const UserInfoCard = ({
                 color: '#4A7B91',
               }}
             >
-              آماده یادگیری شو 
+              بازی جدیدتو شروع کن!
             </div>
           </div>
 
@@ -505,7 +506,7 @@ const UserInfoCard = ({
                   whiteSpace: 'nowrap',
                 }}
               >
-                کلاس فعال
+                بازی جدید
               </span>
             </div>
 
@@ -544,7 +545,7 @@ const UserInfoCard = ({
                   whiteSpace: 'nowrap',
                 }}
               >
-                ورود به کلاس
+                بزن بریم!
               </span>
             </div>
           </div>

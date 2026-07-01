@@ -2,10 +2,13 @@ const { query, queryOne, withTransaction } = require('../database/connection');
 const { NotFoundError } = require('../utils/errors');
 
 // کتاب‌های دانش‌آموز: کتاب‌های کلاس‌هایی که عضو است + کتاب‌های عمومی (class_id NULL)
+// game_count = تعداد بازی‌های فعال هر کتاب (برای تصمیم‌گیری در فرانت)
 async function getMyBooks(userId) {
   return query(
-    `SELECT DISTINCT b.id, b.title, b.description, b.cover_url, b.game_url,
-            b.game_type, b.coin_reward, b.class_id, b.sort_order
+    `SELECT DISTINCT b.id, b.title, b.description, b.cover_url,
+            b.coin_reward, b.class_id, b.sort_order,
+            (SELECT COUNT(*) FROM book_games g
+              WHERE g.book_id = b.id AND g.is_active = 1 AND g.deleted_at IS NULL) AS game_count
      FROM books b
      LEFT JOIN class_students cs
        ON cs.class_id = b.class_id AND cs.student_id = :userId AND cs.is_visible = 1
@@ -37,28 +40,80 @@ async function getBook(id) {
   return book;
 }
 
-async function getBookGame(id) {
-  const book = await getBook(id);
+// لیست بازی‌های یک کتاب — با وضعیت تکمیل برای کاربر (برای قفل ترتیبی)
+async function getBookGames(bookId, userId = null) {
+  const book = await getBook(bookId);
+  const games = await query(
+    `SELECT g.id, g.book_id, g.title, g.description, g.cover_url, g.game_url,
+            g.game_type, g.coin_reward, g.sort_order,
+            ${userId != null
+              ? `(SELECT COUNT(*) FROM book_completions bc
+                   WHERE bc.book_game_id = g.id AND bc.user_id = :userId) > 0`
+              : '0'} AS completed
+     FROM book_games g
+     WHERE g.book_id = :bookId AND g.is_active = 1 AND g.deleted_at IS NULL
+     ORDER BY g.sort_order, g.id`,
+    userId != null ? { bookId, userId } : { bookId }
+  );
   return {
-    bookId: book.id,
-    title: book.title,
-    gameUrl: book.game_url,
-    gameType: book.game_type,
-    coinReward: book.coin_reward,
+    book: { id: book.id, title: book.title, cover_url: book.cover_url },
+    games: games.map((g) => ({ ...g, completed: !!Number(g.completed) })),
   };
 }
 
-// پایان بازی → اعطای سکه + ثبت تکمیل + پیشنهاد بازی بعدی
-async function completeGame(userId, bookId, { score = null } = {}) {
-  const book = await getBook(bookId);
+async function getGame(gameId) {
+  const game = await queryOne(
+    `SELECT g.*, b.title AS book_title FROM book_games g
+     JOIN books b ON b.id = g.book_id
+     WHERE g.id = :gameId AND g.is_active = 1 AND g.deleted_at IS NULL`,
+    { gameId }
+  );
+  if (!game) throw new NotFoundError('Game');
+  return {
+    id: game.id,
+    bookId: game.book_id,
+    bookTitle: game.book_title,
+    title: game.title,
+    gameUrl: game.game_url,
+    gameType: game.game_type,
+    coinReward: game.coin_reward,
+  };
+}
+
+// پایان یک بازی → اعطای سکه + ثبت تکمیل + پیشنهاد بازی بعدیِ همان کتاب
+async function completeGame(userId, gameId, { score = null } = {}) {
+  const game = await queryOne(
+    `SELECT * FROM book_games WHERE id = :gameId AND is_active = 1 AND deleted_at IS NULL`,
+    { gameId }
+  );
+  if (!game) throw new NotFoundError('Game');
+
+  // اجرای مرحله‌ای: بازی قبلیِ همان کتاب باید کامل شده باشد (بازی اول همیشه آزاد)
+  const prev = await queryOne(
+    `SELECT id FROM book_games
+     WHERE book_id = :bookId AND is_active = 1 AND deleted_at IS NULL
+       AND (sort_order, id) < (:sortOrder, :gameId)
+     ORDER BY sort_order DESC, id DESC LIMIT 1`,
+    { bookId: game.book_id, sortOrder: game.sort_order, gameId: game.id }
+  );
+  if (prev) {
+    const prevDone = await queryOne(
+      'SELECT id FROM book_completions WHERE book_game_id = :pid AND user_id = :userId LIMIT 1',
+      { pid: prev.id, userId }
+    );
+    if (!prevDone) {
+      const { ForbiddenError } = require('../utils/errors');
+      throw new ForbiddenError('برای این بازی ابتدا باید بازی قبلی را کامل کنی');
+    }
+  }
 
   return withTransaction(async (conn) => {
-    const coins = book.coin_reward || 0;
+    const coins = game.coin_reward || 0;
 
     await conn.execute(
-      `INSERT INTO book_completions (book_id, user_id, score, coins_awarded)
-       VALUES (?, ?, ?, ?)`,
-      [bookId, userId, score, coins]
+      `INSERT INTO book_completions (book_id, book_game_id, user_id, score, coins_awarded)
+       VALUES (?, ?, ?, ?, ?)`,
+      [game.book_id, game.id, userId, score, coins]
     );
 
     // اطمینان از وجود کیف پول و اعطای سکه
@@ -77,27 +132,25 @@ async function completeGame(userId, bookId, { score = null } = {}) {
     await conn.execute(
       `INSERT INTO token_transactions (user_id, wallet_id, amount, balance_after, source_type, source_id)
        VALUES (?, ?, ?, ?, 'book_game', ?)`,
-      [userId, wallet.id, coins, newBalance, bookId]
+      [userId, wallet.id, coins, newBalance, game.id]
     );
     await conn.execute(
       'UPDATE student_profiles SET total_tokens = ? WHERE user_id = ?',
       [newBalance, userId]
     );
 
-    // بازی بعدی (همان مجموعه کتاب‌های قابل‌دسترس)
+    // بازی بعدیِ همان کتاب
     const [nextRows] = await conn.execute(
-      `SELECT b.id, b.title, b.cover_url FROM books b
-       WHERE b.is_active = 1 AND b.deleted_at IS NULL AND b.id <> ?
-         AND (b.class_id IS NULL OR b.class_id IN
-              (SELECT class_id FROM class_students WHERE student_id = ? AND is_visible = 1))
-       ORDER BY b.sort_order, b.id LIMIT 1`,
-      [bookId, userId]
+      `SELECT id, title, cover_url FROM book_games
+       WHERE book_id = ? AND is_active = 1 AND deleted_at IS NULL AND (sort_order, id) > (?, ?)
+       ORDER BY sort_order, id LIMIT 1`,
+      [game.book_id, game.sort_order, game.id]
     );
 
     return {
       coinsAwarded: coins,
       coinBalance: newBalance,
-      nextBook: nextRows[0] || null,
+      nextGame: nextRows[0] || null,
     };
   });
 }
@@ -107,7 +160,13 @@ async function listAll({ classId = null } = {}) {
   let where = 'WHERE b.deleted_at IS NULL';
   const params = {};
   if (classId) { where += ' AND b.class_id = :classId'; params.classId = classId; }
-  return query(`SELECT * FROM books b ${where} ORDER BY b.sort_order, b.id`, params);
+  return query(
+    `SELECT b.*,
+            (SELECT COUNT(*) FROM book_games g
+              WHERE g.book_id = b.id AND g.is_active = 1 AND g.deleted_at IS NULL) AS game_count
+     FROM books b ${where} ORDER BY b.sort_order, b.id`,
+    params
+  );
 }
 
 async function create(data) {
@@ -156,7 +215,57 @@ async function remove(id) {
   return { deleted: true };
 }
 
+// ─── مدیریت بازی‌های یک کتاب (ادمین) ───
+async function createGame(bookId, data) {
+  await getBook(bookId);
+  const result = await query(
+    `INSERT INTO book_games (book_id, title, description, cover_url, game_url, game_type, coin_reward, sort_order)
+     VALUES (:bookId, :title, :description, :coverUrl, :gameUrl, :gameType, :coinReward, :sortOrder)`,
+    {
+      bookId,
+      title: data.title,
+      description: data.description || null,
+      coverUrl: data.coverUrl || null,
+      gameUrl: data.gameUrl || null,
+      gameType: data.gameType || 'web',
+      coinReward: data.coinReward != null ? data.coinReward : 10,
+      sortOrder: data.sortOrder || 0,
+    }
+  );
+  return getGame(result.insertId);
+}
+
+async function updateGame(gameId, data) {
+  const existing = await queryOne('SELECT id FROM book_games WHERE id = :id AND deleted_at IS NULL', { id: gameId });
+  if (!existing) throw new NotFoundError('Game');
+  await query(
+    `UPDATE book_games SET title = :title, description = :description, cover_url = :coverUrl,
+       game_url = :gameUrl, game_type = :gameType, coin_reward = :coinReward, sort_order = :sortOrder,
+       updated_at = NOW()
+     WHERE id = :id`,
+    {
+      id: gameId,
+      title: data.title,
+      description: data.description || null,
+      coverUrl: data.coverUrl || null,
+      gameUrl: data.gameUrl || null,
+      gameType: data.gameType || 'web',
+      coinReward: data.coinReward != null ? data.coinReward : 10,
+      sortOrder: data.sortOrder || 0,
+    }
+  );
+  return getGame(gameId);
+}
+
+async function removeGame(gameId) {
+  const existing = await queryOne('SELECT id FROM book_games WHERE id = :id AND deleted_at IS NULL', { id: gameId });
+  if (!existing) throw new NotFoundError('Game');
+  await query('UPDATE book_games SET deleted_at = NOW(), is_active = 0 WHERE id = :id', { id: gameId });
+  return { deleted: true };
+}
+
 module.exports = {
-  getMyBooks, getMyClasses, getBook, getBookGame, completeGame,
+  getMyBooks, getMyClasses, getBook, getBookGames, getGame, completeGame,
   listAll, create, update, remove,
+  createGame, updateGame, removeGame,
 };

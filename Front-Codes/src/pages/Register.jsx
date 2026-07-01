@@ -7,7 +7,12 @@ import Logo from '../icons/icon26.png';
 
 const Register = () => {
   const navigate = useNavigate();
-  const { login } = useUser();
+  const { login, loginAsGuest } = useUser();
+
+  const handleGuest = () => {
+    loginAsGuest();
+    navigate('/', { replace: true });
+  };
   
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -376,6 +381,36 @@ const Register = () => {
             {isLoading ? 'در حال ثبت‌نام...' : 'ثبت‌نام 🚀'}
           </button>
         </form>
+
+        {/* جداکننده */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '18px 0' }}>
+          <div style={{ flex: 1, height: '1px', background: '#E0E0E0' }} />
+          <span style={{ fontSize: '12px', color: '#78909C' }}>یا</span>
+          <div style={{ flex: 1, height: '1px', background: '#E0E0E0' }} />
+        </div>
+
+        {/* ورود به عنوان مهمان */}
+        <button
+          type="button"
+          onClick={handleGuest}
+          disabled={isLoading}
+          style={{
+            width: '100%',
+            padding: '14px',
+            background: 'transparent',
+            color: colors.primary,
+            border: `2px solid ${colors.primary}`,
+            borderRadius: '20px',
+            fontSize: '15px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
+          🚀 ورود به عنوان مهمان
+        </button>
+        <p style={{ textAlign: 'center', fontSize: '11px', color: '#78909C', marginTop: '8px' }}>
+          بدون ثبت‌نام، محصول را با محتوای نمونه‌ی کلاس اول تجربه کن
+        </p>
 
         <div style={{ textAlign: 'center', marginTop: '16px' }}>
           <Link to="/login" style={{

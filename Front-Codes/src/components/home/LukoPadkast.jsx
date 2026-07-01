@@ -1,5 +1,5 @@
 import React from 'react';
-import carcter from "../../icons/icon52.png";
+import carcter from "../../icons/icon54.png";
 
 /* =========================
    PODCAST SVG ICON

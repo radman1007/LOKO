@@ -15,6 +15,7 @@ const LukoHealth = lazy(() => import('./pages/LukoHealth'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Books = lazy(() => import('./pages/Books'));
 const LukoPodcast = lazy(() => import('./pages/LukoPodcast'));
+const BookGames = lazy(() => import('./pages/BookGames'));
 const BookGame = lazy(() => import('./pages/BookGame'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const SchoolPanel = lazy(() => import('./pages/SchoolPanel'));
@@ -74,7 +75,8 @@ function AppContent() {
           
           <Route path="/" element={<ProtectedRoute allowedRoles={['student']}><Home /></ProtectedRoute>} />
           <Route path="/books" element={<ProtectedRoute allowedRoles={['student']}><Books /></ProtectedRoute>} />
-          <Route path="/book/:id" element={<ProtectedRoute allowedRoles={['student']}><BookGame /></ProtectedRoute>} />
+          <Route path="/book/:id" element={<ProtectedRoute allowedRoles={['student']}><BookGames /></ProtectedRoute>} />
+          <Route path="/game/:gameId" element={<ProtectedRoute allowedRoles={['student']}><BookGame /></ProtectedRoute>} />
           <Route path="/luko-club" element={<ProtectedRoute allowedRoles={['student']}><LukoClub /></ProtectedRoute>} />
           <Route path="/entertainment" element={<ProtectedRoute allowedRoles={['student']}><LukoTV /></ProtectedRoute>} />
           <Route path="/luko-health" element={<ProtectedRoute allowedRoles={['student']}><LukoHealth /></ProtectedRoute>} />

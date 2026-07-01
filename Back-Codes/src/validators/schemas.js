@@ -89,6 +89,16 @@ const bookSchema = Joi.object({
   sortOrder: Joi.number().integer().allow(null),
 });
 
+const bookGameSchema = Joi.object({
+  title: Joi.string().min(1).max(200).required(),
+  description: Joi.string().max(2000).allow('', null),
+  coverUrl: Joi.string().max(500).allow('', null),
+  gameUrl: Joi.string().max(500).allow('', null),
+  gameType: Joi.string().max(50).allow('', null),
+  coinReward: Joi.number().integer().min(0).max(1000),
+  sortOrder: Joi.number().integer().allow(null),
+});
+
 const aiChatSchema = Joi.object({
   message: Joi.string().min(1).max(2000).required(),
   sessionId: Joi.string().uuid().allow(null),
@@ -123,6 +133,7 @@ module.exports = {
   userUpdateSchema,
   classCreateSchema,
   bookSchema,
+  bookGameSchema,
   aiChatSchema,
   parentRegisterSchema,
   addChildSchema,

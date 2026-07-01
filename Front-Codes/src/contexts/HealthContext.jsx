@@ -14,7 +14,8 @@ export const useHealth = () => {
 };
 
 export const HealthProvider = ({ children }) => {
-  const { updateUser } = useUser(); // دریافت تابع updateUser
+  const { updateUser, user } = useUser(); // دریافت تابع updateUser
+  const guest = !!user?.isGuest;
   const [healthData, setHealthData] = useState({
     lastMoodCheck: null,
     lastMoodTime: null,
@@ -33,6 +34,15 @@ export const HealthProvider = ({ children }) => {
   // ========== بارگذاری داده‌ها از سرور ==========
   useEffect(() => {
     const loadHealthData = async () => {
+      // حالت مهمان: فقط از localStorage استفاده کن، درخواست سرور نزن
+      if (guest) {
+        const saved = localStorage.getItem('locoHealthData');
+        if (saved && saved !== 'undefined') {
+          try { setHealthData(JSON.parse(saved)); } catch (e) {}
+        }
+        setLoading(false);
+        return;
+      }
       try {
         // دریافت تاریخچه مود از سرور
         const moodHistory = await moodService.getHistory();
@@ -65,7 +75,7 @@ export const HealthProvider = ({ children }) => {
     };
 
     loadHealthData();
-  }, []);
+  }, [guest]);
 
   // ========== ذخیره در localStorage (به عنوان کش) ==========
   useEffect(() => {
@@ -76,6 +86,16 @@ export const HealthProvider = ({ children }) => {
 
   // ========== بررسی نیاز به نمایش مودال ==========
   const checkMoodPrompt = async () => {
+    if (guest) {
+      // حالت مهمان: بررسی محلی بدون سرور
+      const now = Date.now();
+      const today = new Date().toDateString();
+      const fourHours = 4 * 60 * 60 * 1000;
+      const lastModalShown = healthData?.lastModalShownTime || 0;
+      const lastMoodDate = healthData?.lastMoodCheck ? new Date(healthData.lastMoodCheck).toDateString() : null;
+      setShowMoodReminder(now - lastModalShown >= fourHours || lastMoodDate !== today);
+      return;
+    }
     try {
       const response = await moodService.checkPrompt();
       setShowMoodReminder(response.shouldShow || false);
@@ -101,14 +121,14 @@ export const HealthProvider = ({ children }) => {
   // ========== ثبت وضعیت روحی ==========
   const recordMood = async (mood) => {
     try {
-      // ارسال به سرور
-      await moodService.checkin({ mood });
-      
-      // ====== به‌روزرسانی اطلاعات کاربر ======
-      if (updateUser) {
-        await updateUser();
+      // در حالت مهمان فقط محلی ذخیره می‌شود
+      if (!guest) {
+        await moodService.checkin({ mood });
+        if (updateUser) {
+          await updateUser();
+        }
       }
-      
+
       const now = Date.now();
       const nowDate = new Date();
       const today = nowDate.toDateString();
@@ -152,14 +172,14 @@ export const HealthProvider = ({ children }) => {
   // ========== ثبت جلسه تنفس ==========
   const recordBreathing = async (duration, count) => {
     try {
-      // ارسال به سرور
-      await breathingService.createSession({ duration, count });
-      
-      // ====== به‌روزرسانی اطلاعات کاربر ======
-      if (updateUser) {
-        await updateUser();
+      // در حالت مهمان فقط محلی ذخیره می‌شود
+      if (!guest) {
+        await breathingService.createSession({ duration, count });
+        if (updateUser) {
+          await updateUser();
+        }
       }
-      
+
       const nowDate = new Date();
       const today = nowDate.toDateString();
       const now = Date.now();

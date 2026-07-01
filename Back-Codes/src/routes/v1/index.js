@@ -14,7 +14,7 @@ const { PERMISSIONS } = require('../../config/permissions');
 const {
   loginSchema, refreshSchema, moodCheckinSchema, aiChatSchema,
   secretSchema, secretUpdateSchema, breathingSchema, ticketSchema, schoolSchema,
-  userCreateSchema, userUpdateSchema, classCreateSchema, bookSchema,
+  userCreateSchema, userUpdateSchema, classCreateSchema, bookSchema, bookGameSchema,
   parentRegisterSchema, addChildSchema,
 } = require('../../validators/schemas');
 const { authLimiter } = require('../../middleware/rateLimiter');
@@ -72,8 +72,16 @@ router.post('/books', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), validat
 router.get('/books/:id', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.get);
 router.put('/books/:id', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), validate(bookSchema), bookController.update);
 router.delete('/books/:id', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), bookController.remove);
-router.get('/books/:id/game', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.game);
-router.post('/books/:id/game/complete', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.completeGame);
+
+// لیست بازی‌های یک کتاب + مدیریت بازی‌ها (ادمین)
+router.get('/books/:id/games', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.games);
+router.post('/books/:id/games', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), validate(bookGameSchema), bookController.createGame);
+router.put('/games/:gameId', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), validate(bookGameSchema), bookController.updateGame);
+router.delete('/games/:gameId', authenticate, authorize(PERMISSIONS.BOOKS_MANAGE), bookController.removeGame);
+
+// پخش و تکمیل یک بازی مشخص
+router.get('/games/:gameId', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.getGame);
+router.post('/games/:gameId/complete', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.completeGame);
 
 // ─── Content: Videos (Loko TV) ──────────────────────────────
 router.get('/videos/latest-by-category', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.latestVideosByCategory);

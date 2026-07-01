@@ -168,12 +168,17 @@ const bookController = {
   async get(req, res, next) {
     try { return success(res, await bookService.getBook(req.params.id)); } catch (err) { next(err); }
   },
-  async game(req, res, next) {
-    try { return success(res, await bookService.getBookGame(req.params.id)); } catch (err) { next(err); }
+  // لیست بازی‌های یک کتاب (با وضعیت تکمیل کاربر)
+  async games(req, res, next) {
+    try { return success(res, await bookService.getBookGames(req.params.id, req.user.id)); } catch (err) { next(err); }
+  },
+  // اطلاعات یک بازی برای پخش
+  async getGame(req, res, next) {
+    try { return success(res, await bookService.getGame(req.params.gameId)); } catch (err) { next(err); }
   },
   async completeGame(req, res, next) {
     try {
-      const result = await bookService.completeGame(req.user.id, req.params.id, { score: req.body.score });
+      const result = await bookService.completeGame(req.user.id, req.params.gameId, { score: req.body.score });
       return success(res, result);
     } catch (err) { next(err); }
   },
@@ -189,6 +194,16 @@ const bookController = {
   },
   async remove(req, res, next) {
     try { return success(res, await bookService.remove(req.params.id)); } catch (err) { next(err); }
+  },
+  // مدیریت بازی‌های کتاب (ادمین)
+  async createGame(req, res, next) {
+    try { return created(res, await bookService.createGame(req.params.id, req.body)); } catch (err) { next(err); }
+  },
+  async updateGame(req, res, next) {
+    try { return success(res, await bookService.updateGame(req.params.gameId, req.body)); } catch (err) { next(err); }
+  },
+  async removeGame(req, res, next) {
+    try { return success(res, await bookService.removeGame(req.params.gameId)); } catch (err) { next(err); }
   },
 };
 
