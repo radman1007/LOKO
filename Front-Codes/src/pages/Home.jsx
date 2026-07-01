@@ -35,7 +35,7 @@ const Home = () => {
   const { showMoodReminder, showSuggestion, recordMood, dismissReminder, dismissSuggestion } = useHealth();
   const isMobile = true;
   
-  const [userXP, setUserXP] = useState(() => parseInt(localStorage.getItem('luko_user_xp')) || 350);
+  const [userXP, setUserXP] = useState(() => parseInt(localStorage.getItem('luko_user_xp')) || 0);
   const [activeNav, setActiveNav] = useState('خانه');
   const [pressedItem, setPressedItem] = useState(null);
   const [showMoodModal, setShowMoodModal] = useState(false);

@@ -136,12 +136,12 @@ const LukoClub = () => {
 
   const handleVideoEnded = () => {
     const today = new Date().toDateString(); const watchData = JSON.parse(localStorage.getItem('luko_watched_videos') || '{}'); watchData[videoModal.title] = today; localStorage.setItem('luko_watched_videos', JSON.stringify(watchData));
-    if (!localCompletedTasks.includes(videoModal.missionId)) { const newCompleted = [...localCompletedTasks, videoModal.missionId]; setLocalCompletedTasks(newCompleted); localStorage.setItem('luko_completed_tasks', JSON.stringify(newCompleted)); const currentHomeXP = parseInt(localStorage.getItem('luko_user_xp')) || 350; localStorage.setItem('luko_user_xp', (currentHomeXP + videoModal.xp).toString()); if (newCompleted.length === todayMissionsList.length) setLocalMissionCompleted(true); }
+    if (!localCompletedTasks.includes(videoModal.missionId)) { const newCompleted = [...localCompletedTasks, videoModal.missionId]; setLocalCompletedTasks(newCompleted); localStorage.setItem('luko_completed_tasks', JSON.stringify(newCompleted)); const currentHomeXP = parseInt(localStorage.getItem('luko_user_xp')) || 0; localStorage.setItem('luko_user_xp', (currentHomeXP + videoModal.xp).toString()); if (newCompleted.length === todayMissionsList.length) setLocalMissionCompleted(true); }
     alert(`${videoModal.xp} XP دریافت کردی`); closeVideoModal();
   };
 
   const handleNonVideoMission = (missionId, xpAmount) => {
-    if (localCompletedTasks.includes(missionId)) return; const newCompleted = [...localCompletedTasks, missionId]; setLocalCompletedTasks(newCompleted); localStorage.setItem('luko_completed_tasks', JSON.stringify(newCompleted)); const currentHomeXP = parseInt(localStorage.getItem('luko_user_xp')) || 350; localStorage.setItem('luko_user_xp', (currentHomeXP + xpAmount).toString()); if (newCompleted.length === todayMissionsList.length) setLocalMissionCompleted(true);
+    if (localCompletedTasks.includes(missionId)) return; const newCompleted = [...localCompletedTasks, missionId]; setLocalCompletedTasks(newCompleted); localStorage.setItem('luko_completed_tasks', JSON.stringify(newCompleted)); const currentHomeXP = parseInt(localStorage.getItem('luko_user_xp')) || 0; localStorage.setItem('luko_user_xp', (currentHomeXP + xpAmount).toString()); if (newCompleted.length === todayMissionsList.length) setLocalMissionCompleted(true);
   };
 
   const handleCompleteMainMission = () => { if (!localMissionCompleted && mainMissionData) { setLocalMissionCompleted(true); setTimeout(() => { setCurrentDay(prev => prev + 1); localStorage.setItem('luko_current_day', currentDay + 1); setLocalCompletedTasks([]); localStorage.setItem('luko_completed_tasks', JSON.stringify([])); }, 100); } };

@@ -4,6 +4,8 @@ import { useUser } from '../contexts/UserContext';
 import { useHealth } from '../contexts/HealthContext';
 import apiClient from '../services/api.client';
 import { healthService } from '../services/mood.service';
+import { clubService } from '../services/task.service';
+import { getGuestCoins } from '../data/guestData';
 import { HiOutlineHome, HiOutlineUser, HiOutlineFire, HiOutlinePlay, HiOutlineHeart, HiOutlineLogout, HiOutlineTicket, HiOutlinePlus, HiOutlineCheck, HiOutlineX, HiOutlineClock, HiOutlineShoppingBag, HiOutlineAcademicCap, HiOutlineLockClosed } from 'react-icons/hi';
 
 import Header from '../components/common/Header';
@@ -25,18 +27,29 @@ const Profile = () => {
   const [selectedTicket, setSelectedTicket] = useState(null); const [replyMessage, setReplyMessage] = useState('');
   const [updating, setUpdating] = useState(false); const [showReplyModal, setShowReplyModal] = useState(false);
   const [healthStats, setHealthStats] = useState(null); // آمار واقعی سلامت از بک‌اند
+  const [clubSummary, setClubSummary] = useState(null);  // امتیاز/سکه/استریک واقعی از بک‌اند
 
   useEffect(() => { loadTickets(); }, [user]);
 
-  // بارگذاری آمار واقعی سلامت (لوکو سلامت) — برای هر کاربر واقعی
+  // بارگذاری داده‌ی واقعی سلامت + امتیاز/سکه (برای هر کاربر واقعی)
   useEffect(() => {
-    if (user?.isGuest) { setHealthStats(null); return; }
+    if (user?.isGuest) {
+      setHealthStats(null);
+      // مهمان: امتیاز از سکه‌ی محلی
+      setClubSummary({ points: getGuestCoins(), coins: getGuestCoins(), streak: 0 });
+      return;
+    }
     let mounted = true;
     (async () => {
       try {
-        const res = await healthService.getStats();
-        if (mounted && res?.success) setHealthStats(res.data);
-      } catch (e) { if (mounted) setHealthStats(null); }
+        const [healthRes, clubRes] = await Promise.allSettled([
+          healthService.getStats(),
+          clubService.getSummary(),
+        ]);
+        if (!mounted) return;
+        if (healthRes.status === 'fulfilled' && healthRes.value?.success) setHealthStats(healthRes.value.data);
+        if (clubRes.status === 'fulfilled' && clubRes.value?.success) setClubSummary(clubRes.value.data);
+      } catch (e) { /* ignore */ }
     })();
     return () => { mounted = false; };
   }, [user]);
@@ -47,8 +60,9 @@ const Profile = () => {
   const handleSubmitTicket = async () => { if (user?.isGuest) { alert('برای ثبت تیکت باید ابتدا وارد حساب کاربری شوی. این قابلیت در حالت مهمان در دسترس نیست.'); return; } if (!ticketSubject.trim() || ticketSubject.trim().length < 3) return alert('موضوع تیکت باید حداقل ۳ کاراکتر باشد'); if (!ticketMessage.trim()) return alert('لطفاً متن تیکت را وارد کنید'); setUpdating(true); try { await apiClient.post('/tickets', { subject: ticketSubject.trim(), message: ticketMessage.trim(), priority: ticketPriority }); alert('✅ تیکت با موفقیت ارسال شد'); setShowTicketModal(false); setTicketSubject(''); setTicketMessage(''); setTicketPriority('medium'); await loadTickets(); } catch (error) { alert(error.response?.data?.error?.message || error.response?.data?.message || 'خطا در ارسال تیکت'); } finally { setUpdating(false); } };
   const handleReply = async () => { if (!replyMessage.trim()) return alert('لطفاً متن پاسخ را وارد کنید'); setUpdating(true); try { await apiClient.post(`/tickets/${selectedTicket.id}/reply`, { message: replyMessage.trim() }); alert('✅ پاسخ ارسال شد'); setReplyMessage(''); setShowReplyModal(false); setSelectedTicket(null); await loadTickets(); } catch (error) { alert(error.response?.data?.error?.message || error.response?.data?.message || 'خطا در ارسال پاسخ'); } finally { setUpdating(false); } };
 
-  const currentXP = parseInt(localStorage.getItem('luko_user_xp')) || user?.xp || 0;
-  const currentStreak = parseInt(localStorage.getItem('luko_current_day')) || 1;
+  // امتیاز و استریک واقعی از بک‌اند (بدون مقدار جعلی پیش‌فرض)
+  const currentXP = clubSummary?.points ?? 0;
+  const currentStreak = clubSummary?.streak ?? 0;
   const purchasedIds = JSON.parse(localStorage.getItem('lukoClubPurchased') || '[]');
 
   const allMedals = [ { id: 1, name: 'مدال ریاضی', icon: Icon15, xpRequired: 200 }, { id: 2, name: 'مدال علوم', icon: Icon16, xpRequired: 300 }, { id: 3, name: 'مدال هنر', icon: Icon17, xpRequired: 400 }, { id: 4, name: 'مدال زبان', icon: Icon18, xpRequired: 500 }, { id: 5, name: 'مدال ورزش', icon: Icon11, xpRequired: 600 }, { id: 6, name: 'مدال موسیقی', icon: Icon12, xpRequired: 700 }, { id: 7, name: 'مدال برنامه‌نویسی', icon: Icon13, xpRequired: 800 }, { id: 8, name: 'مدال رهبری', icon: Icon14, xpRequired: 900 } ].map(m => ({ ...m, earned: currentXP >= m.xpRequired }));
