@@ -58,13 +58,13 @@ async function seedFirstGrade() {
     );
     if (!book) {
       const res = await query(
-        `INSERT INTO books (class_id, title, description, coin_reward, sort_order, is_active)
-         VALUES (NULL, :title, :desc, :coin, :sort, 1)`,
+        `INSERT INTO books (class_id, grade, title, description, coin_reward, sort_order, is_active)
+         VALUES (NULL, 'اول', :title, :desc, :coin, :sort, 1)`,
         { title: b.title, desc: b.desc, coin: b.coin, sort: b.sort }
       );
       book = { id: res.insertId };
     } else {
-      await query('UPDATE books SET is_active = 1, deleted_at = NULL, sort_order = :sort WHERE id = :id',
+      await query("UPDATE books SET is_active = 1, deleted_at = NULL, grade = 'اول', sort_order = :sort WHERE id = :id",
         { sort: b.sort, id: book.id });
     }
 

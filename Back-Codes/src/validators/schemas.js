@@ -116,6 +116,7 @@ const parentRegisterSchema = Joi.object({
 const addChildSchema = Joi.object({
   firstName: Joi.string().min(1).max(100).required(),
   lastName: Joi.string().min(1).max(100).required(),
+  grade: Joi.string().valid('اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم').required(),
   nationalCode: Joi.string().max(20).allow('', null),
   phone: Joi.string().max(20).allow('', null),
 });

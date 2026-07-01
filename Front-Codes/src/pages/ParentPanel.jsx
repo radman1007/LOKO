@@ -31,7 +31,7 @@ const ParentPanel = () => {
   const [children, setChildren] = useState([]);
   const [loadingChildren, setLoadingChildren] = useState(true);
   const [showAddChild, setShowAddChild] = useState(false);
-  const [childForm, setChildForm] = useState({ firstName: '', lastName: '', nationalCode: '', phone: '' });
+  const [childForm, setChildForm] = useState({ firstName: '', lastName: '', grade: '', nationalCode: '', phone: '' });
   const [savingChild, setSavingChild] = useState(false);
   const [newChildCred, setNewChildCred] = useState(null); // {username, password, firstName, lastName}
   
@@ -76,17 +76,22 @@ const ParentPanel = () => {
       alert('لطفاً نام و نام خانوادگی فرزند را وارد کنید');
       return;
     }
+    if (!childForm.grade) {
+      alert('لطفاً پایه‌ی تحصیلی فرزند را انتخاب کنید');
+      return;
+    }
     setSavingChild(true);
     try {
       const res = await parentService.addChild({
         firstName: childForm.firstName.trim(),
         lastName: childForm.lastName.trim(),
+        grade: childForm.grade,
         nationalCode: childForm.nationalCode.trim() || null,
         phone: childForm.phone.trim() || null,
       });
       if (res?.success) {
         setNewChildCred(res.data); // نام کاربری و رمز تولیدشده
-        setChildForm({ firstName: '', lastName: '', nationalCode: '', phone: '' });
+        setChildForm({ firstName: '', lastName: '', grade: '', nationalCode: '', phone: '' });
         await loadChildren();
       } else {
         alert('خطا در افزودن فرزند');
@@ -366,7 +371,10 @@ const ParentPanel = () => {
                       <HiOutlineEmojiHappy size={30} color={colors.primary} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ fontSize: '15px', fontWeight: 700, color: colors.text }}>{c.first_name} {c.last_name}</h3>
+                      <h3 style={{ fontSize: '15px', fontWeight: 700, color: colors.text }}>
+                        {c.first_name} {c.last_name}
+                        {c.grade && <span style={{ fontSize: '11px', fontWeight: 700, color: colors.primary, background: colors.primaryLight, padding: '2px 8px', borderRadius: '999px', marginRight: '6px' }}>پایه‌ی {c.grade}</span>}
+                      </h3>
                       <p style={{ fontSize: '11px', color: colors.textSecondary, marginTop: '2px' }}>نام کاربری: {c.username}</p>
                       <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
                         <span style={{ fontSize: '12px', color: colors.primary }}>⭐ {c.total_points ?? 0} امتیاز</span>
@@ -613,6 +621,36 @@ const ParentPanel = () => {
                 {[
                   { key: 'firstName', label: 'نام *', ph: 'مثلاً: آراد' },
                   { key: 'lastName', label: 'نام خانوادگی *', ph: 'مثلاً: کریمی' },
+                ].map((f) => (
+                  <div key={f.key} style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: colors.textSecondary, marginBottom: '6px', fontWeight: 600 }}>{f.label}</label>
+                    <input
+                      type="text"
+                      value={childForm[f.key]}
+                      placeholder={f.ph}
+                      onChange={(e) => setChildForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                      style={{ width: '100%', padding: '11px 14px', border: '1px solid #E0E0E0', borderRadius: '12px', fontSize: '14px', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }}
+                    />
+                  </div>
+                ))}
+
+                {/* انتخاب پایه‌ی تحصیلی — کتاب‌ها بر اساس همین پایه فعال می‌شوند */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: colors.textSecondary, marginBottom: '6px', fontWeight: 600 }}>پایه‌ی تحصیلی *</label>
+                  <select
+                    value={childForm.grade}
+                    onChange={(e) => setChildForm((prev) => ({ ...prev, grade: e.target.value }))}
+                    style={{ width: '100%', padding: '11px 14px', border: '1px solid #E0E0E0', borderRadius: '12px', fontSize: '14px', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', background: '#fff', color: colors.text }}
+                  >
+                    <option value="">انتخاب پایه...</option>
+                    {['اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم'].map((g) => (
+                      <option key={g} value={g}>پایه‌ی {g}</option>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: '11px', color: colors.textSecondary, marginTop: '6px' }}>کتاب‌ها و بازی‌های فرزند بر اساس این پایه فعال می‌شوند.</p>
+                </div>
+
+                {[
                   { key: 'nationalCode', label: 'کد ملی (اختیاری)', ph: '' },
                   { key: 'phone', label: 'شماره موبایل (اختیاری)', ph: '' },
                 ].map((f) => (
@@ -627,6 +665,7 @@ const ParentPanel = () => {
                     />
                   </div>
                 ))}
+
                 <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
                   <button onClick={() => setShowAddChild(false)} disabled={savingChild} style={{ flex: 1, padding: '12px', background: '#F0F2F5', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', color: colors.text }}>انصراف</button>
                   <button onClick={handleAddChild} disabled={savingChild} style={{ flex: 1, padding: '12px', background: colors.primary, border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, cursor: savingChild ? 'not-allowed' : 'pointer', opacity: savingChild ? 0.6 : 1 }}>

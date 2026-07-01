@@ -1,21 +1,29 @@
 const { query, queryOne, withTransaction } = require('../database/connection');
 const { NotFoundError } = require('../utils/errors');
 
-// کتاب‌های دانش‌آموز: کتاب‌های کلاس‌هایی که عضو است + کتاب‌های عمومی (class_id NULL)
+// کتاب‌های دانش‌آموز:
+//  - کتاب‌های کلاس‌هایی که عضو است
+//  - کتاب‌های عمومی (class_id NULL) که پایه‌شان با پایه‌ی دانش‌آموز یکی است یا بدون پایه‌اند
 // game_count = تعداد بازی‌های فعال هر کتاب (برای تصمیم‌گیری در فرانت)
 async function getMyBooks(userId) {
+  const student = await queryOne('SELECT grade FROM users WHERE id = :userId', { userId });
+  const grade = student?.grade || null;
+
   return query(
     `SELECT DISTINCT b.id, b.title, b.description, b.cover_url,
-            b.coin_reward, b.class_id, b.sort_order,
+            b.coin_reward, b.class_id, b.grade, b.sort_order,
             (SELECT COUNT(*) FROM book_games g
               WHERE g.book_id = b.id AND g.is_active = 1 AND g.deleted_at IS NULL) AS game_count
      FROM books b
      LEFT JOIN class_students cs
        ON cs.class_id = b.class_id AND cs.student_id = :userId AND cs.is_visible = 1
      WHERE b.is_active = 1 AND b.deleted_at IS NULL
-       AND (b.class_id IS NULL OR cs.id IS NOT NULL)
+       AND (
+         cs.id IS NOT NULL
+         OR (b.class_id IS NULL AND (b.grade IS NULL OR b.grade = :grade))
+       )
      ORDER BY b.sort_order, b.id`,
-    { userId }
+    { userId, grade }
   );
 }
 

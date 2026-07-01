@@ -46,16 +46,16 @@ async function register({ firstName, lastName, phone, email, username, password 
 
 async function addChild(parentId, childData) {
   return withTransaction(async (conn) => {
-    const { firstName, lastName, nationalCode, phone } = childData;
+    const { firstName, lastName, nationalCode, phone, grade } = childData;
 
     const baseUsername = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${Date.now()}`.replace(/\s+/g, '_');
     const password = generateSecurePassword(8);
     const passwordHash = await hashPassword(password);
 
     const [result] = await conn.execute(
-      `INSERT INTO users (role_id, username, password_hash, plain_password, first_name, last_name, national_code, phone, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-      [ROLE_IDS.student, baseUsername, passwordHash, password, firstName, lastName, nationalCode || null, phone || null]
+      `INSERT INTO users (role_id, username, password_hash, plain_password, first_name, last_name, national_code, phone, grade, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [ROLE_IDS.student, baseUsername, passwordHash, password, firstName, lastName, nationalCode || null, phone || null, grade || null]
     );
     const childId = result.insertId;
 
@@ -82,7 +82,7 @@ async function addChild(parentId, childData) {
 
 async function listChildren(parentId) {
   return query(
-    `SELECT u.id, u.username, u.first_name, u.last_name, u.is_active,
+    `SELECT u.id, u.username, u.first_name, u.last_name, u.is_active, u.grade,
             sp.total_points, sp.garden_level
      FROM parent_student_relations psr
      JOIN users u ON u.id = psr.student_id
