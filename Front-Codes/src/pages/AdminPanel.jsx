@@ -93,16 +93,15 @@ const AdminPanel = () => {
     loadAllData();
   }, []);
 
-  useEffect(() => {
-    if (schools.length > 0) loadAllUsers();
-  }, [schools]);
-
   const loadAllData = async () => {
     setLoading(true);
     try {
-      await loadSchools();
-      await loadVideos();
-      await loadPodcasts();
+      await Promise.allSettled([
+        loadSchools(),
+        loadVideos(),
+        loadPodcasts(),
+        loadAllUsers(),
+      ]);
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -114,7 +113,7 @@ const AdminPanel = () => {
   // ----- Schools -----
   const loadSchools = async () => {
     try {
-      const res = await apiClient.get('v1/schools');
+      const res = await apiClient.get('/schools');
       if (res.data.success) {
         const data = res.data.data || [];
         setSchools(data);
@@ -129,7 +128,7 @@ const AdminPanel = () => {
 
   const loadClassesForSchool = async (schoolId) => {
     try {
-      const res = await apiClient.get(`v1/schools/${schoolId}/classes`);
+      const res = await apiClient.get(`/schools/${schoolId}/classes`);
       if (res.data.success) {
         const data = res.data.data?.classes || [];
         setClasses(prev => ({ ...prev, [schoolId]: data }));
@@ -141,7 +140,7 @@ const AdminPanel = () => {
 
   const createSchool = async (data) => {
     try {
-      const res = await apiClient.post('v1/schools', data);
+      const res = await apiClient.post('/schools', data);
       if (res.data.success) {
         await loadSchools();
         return true;
@@ -156,7 +155,7 @@ const AdminPanel = () => {
   const deleteSchool = async (id) => {
     if (!window.confirm('آیا از حذف این مدرسه مطمئن هستید؟')) return;
     try {
-      await apiClient.delete(`v1/schools/${id}`);
+      await apiClient.delete(`/schools/${id}`);
       await loadSchools();
     } catch (error) {
       alert(error.response?.data?.message || 'خطا در حذف مدرسه');
@@ -164,29 +163,23 @@ const AdminPanel = () => {
   };
 
   // ----- Users -----
+  // همه‌ی کاربرهای سیستم را از endpoint سراسری می‌گیرد (شامل کاربرهای بدون مدرسه)
   const loadAllUsers = async () => {
     try {
-      let allUsers = [];
-      for (const school of schools) {
-        try {
-          const res = await apiClient.get(`v1/schools/${school.id}/users`);
-          if (res.data.success) {
-            const data = res.data.data?.users || res.data.data || [];
-            const usersWithSchool = data.map(u => ({
-              ...u,
-              schoolId: school.id,
-              firstName: u.first_name || u.firstName || '',
-              lastName: u.last_name || u.lastName || '',
-              role: u.role || '',
-              username: u.username || '',
-              classId: u.class_id || u.classId || null,
-              plainPassword: u.plain_password || u.plainPassword || '********'
-            }));
-            allUsers = [...allUsers, ...usersWithSchool];
-          }
-        } catch (e) {}
-      }
-      const unique = allUsers.filter((u, i, self) => i === self.findIndex(t => t.id === u.id));
+      const res = await apiClient.get('/users');
+      const data = res.data.data?.users || res.data.data || [];
+      const mapped = data.map(u => ({
+        ...u,
+        schoolId: u.school_id ?? u.schoolId ?? null,
+        schoolName: u.school_name || u.schoolName || '',
+        firstName: u.first_name || u.firstName || '',
+        lastName: u.last_name || u.lastName || '',
+        role: u.role || '',
+        username: u.username || '',
+        classId: u.class_id || u.classId || null,
+        plainPassword: u.plain_password || u.plainPassword || '********'
+      }));
+      const unique = mapped.filter((u, i, self) => i === self.findIndex(t => t.id === u.id));
       setUsers(unique);
       return unique;
     } catch (error) {
@@ -198,7 +191,7 @@ const AdminPanel = () => {
   // ====== دریافت پسورد کاربر ======
   const getUserPassword = async (userId) => {
     try {
-      const res = await apiClient.get(`v1/users/${userId}/password`);
+      const res = await apiClient.get(`/users/${userId}/password`);
       if (res.data.success) {
         const data = res.data.data || {};
         setSelectedUser({
@@ -250,7 +243,7 @@ const AdminPanel = () => {
         payload.classId = data.classId;
       }
 
-      const res = await apiClient.post(`v1/schools/${schoolId}/users`, payload);
+      const res = await apiClient.post(`/schools/${schoolId}/users`, payload);
       if (res.data.success) {
         await loadAllUsers();
         alert(`✅ کاربر با موفقیت ایجاد شد!\n\nنام کاربری: ${payload.username}\nرمز عبور: ${payload.password}`);
@@ -266,7 +259,7 @@ const AdminPanel = () => {
   const deleteUser = async (id) => {
     if (!window.confirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
     try {
-      await apiClient.delete(`v1/users/${id}`);
+      await apiClient.delete(`/users/${id}`);
       await loadAllUsers();
     } catch (error) {
       alert(error.response?.data?.message || 'خطا در حذف کاربر');
@@ -276,7 +269,7 @@ const AdminPanel = () => {
   // ----- Classes -----
   const createClass = async (data) => {
     try {
-      const res = await apiClient.post(`v1/schools/${data.schoolId}/classes`, {
+      const res = await apiClient.post(`/schools/${data.schoolId}/classes`, {
         name: data.name,
         grade: data.grade,
         academicYear: data.academicYear
@@ -295,7 +288,7 @@ const AdminPanel = () => {
   const deleteClass = async (classId, schoolId) => {
     if (!window.confirm('آیا از حذف این کلاس مطمئن هستید؟')) return;
     try {
-      await apiClient.delete(`v1/classes/${classId}`);
+      await apiClient.delete(`/classes/${classId}`);
       await loadClassesForSchool(schoolId);
     } catch (error) {
       alert(error.response?.data?.message || 'خطا در حذف کلاس');
@@ -311,7 +304,7 @@ const AdminPanel = () => {
 
     try {
       for (const studentId of selectedStudentsForClass) {
-        await apiClient.post(`v1/classes/${currentClassId}/students`, {
+        await apiClient.post(`/classes/${currentClassId}/students`, {
           studentId: studentId
         });
       }
@@ -339,7 +332,7 @@ const AdminPanel = () => {
 
     try {
       for (const teacherId of selectedTeachersForClass) {
-        await apiClient.post(`v1/classes/${currentClassId}/teachers`, {
+        await apiClient.post(`/classes/${currentClassId}/teachers`, {
           teacherId: teacherId
         });
       }
@@ -361,7 +354,7 @@ const AdminPanel = () => {
   // ----- Videos -----
   const loadVideos = async () => {
     try {
-      const res = await apiClient.get('v1/videos');
+      const res = await apiClient.get('/videos');
       setVideos(res.data.success ? res.data.data || [] : []);
     } catch (error) {
       setVideos([]);
@@ -371,7 +364,7 @@ const AdminPanel = () => {
   const deleteVideo = async (id) => {
     if (!window.confirm('آیا از حذف این ویدیو مطمئن هستید؟')) return;
     try {
-      await apiClient.delete(`v1/videos/${id}`);
+      await apiClient.delete(`/videos/${id}`);
       await loadVideos();
     } catch (error) {
       alert(error.response?.data?.message || 'خطا در حذف ویدیو');
@@ -381,7 +374,7 @@ const AdminPanel = () => {
   // ----- Podcasts -----
   const loadPodcasts = async () => {
     try {
-      const res = await apiClient.get('v1/podcasts');
+      const res = await apiClient.get('/podcasts');
       setPodcasts(res.data.success ? res.data.data || [] : []);
     } catch (error) {
       setPodcasts([]);
@@ -391,7 +384,7 @@ const AdminPanel = () => {
   const deletePodcast = async (id) => {
     if (!window.confirm('آیا از حذف این پادکست مطمئن هستید؟')) return;
     try {
-      await apiClient.delete(`v1/podcasts/${id}`);
+      await apiClient.delete(`/podcasts/${id}`);
       await loadPodcasts();
     } catch (error) {
       alert(error.response?.data?.message || 'خطا در حذف پادکست');
@@ -1242,7 +1235,7 @@ const MediaModal = ({ type, onClose, colors }) => {
       formData.append('xp', Number(xp));
       formData.append('description', description.trim() || '');
       formData.append('file', file);
-      await apiClient.post(`v1/${type}s`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await apiClient.post(`/${type}s`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       alert('با موفقیت ثبت شد');
       onClose();
       window.location.reload();

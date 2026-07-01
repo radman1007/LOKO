@@ -265,6 +265,21 @@ const userController = {
       return success(res, result.users, 200, { pagination: { total: result.total, page: result.page, limit: result.limit } });
     } catch (err) { next(err); }
   },
+  // لیست همه‌ی کاربرها: team_admin کل سیستم، سایرین محدود به مدرسه‌ی خود
+  async listAll(req, res, next) {
+    try {
+      const opts = {
+        role: req.query.role,
+        search: req.query.search,
+        page: parseInt(req.query.page, 10) || 1,
+        limit: parseInt(req.query.limit, 10) || 500,
+      };
+      const result = req.user.role === 'team_admin'
+        ? await userService.listAll(opts)
+        : await userService.list(req.user.schoolId, opts);
+      return success(res, result.users, 200, { pagination: { total: result.total, page: result.page, limit: result.limit } });
+    } catch (err) { next(err); }
+  },
   async get(req, res, next) {
     try {
       const schoolId = req.user.role === 'team_admin' ? null : req.user.schoolId;

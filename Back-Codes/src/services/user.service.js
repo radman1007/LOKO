@@ -39,6 +39,38 @@ async function list(schoolId, { role = null, page = 1, limit = 20, includeDelete
   return { users, total: countRow?.total || 0, page, limit };
 }
 
+// لیست همه‌ی کاربرهای سیستم (فقط team_admin) — شامل کاربرهای بدون مدرسه
+async function listAll({ role = null, search = null, page = 1, limit = 500 } = {}) {
+  const offset = (page - 1) * limit;
+  let where = 'WHERE u.deleted_at IS NULL';
+  const params = [];
+
+  if (role) { where += ' AND r.slug = ?'; params.push(role); }
+  if (search) {
+    where += ' AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.username LIKE ?)';
+    const s = `%${search}%`;
+    params.push(s, s, s);
+  }
+
+  const users = await query(
+    `SELECT u.id, u.username, u.first_name, u.last_name, u.is_active,
+            r.slug AS role, u.school_id, s.name AS school_name,
+            u.phone, u.email, u.created_at
+     FROM users u
+     JOIN roles r ON r.id = u.role_id
+     LEFT JOIN schools s ON s.id = u.school_id
+     ${where} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  const [countRow] = await query(
+    `SELECT COUNT(*) AS total FROM users u JOIN roles r ON r.id = u.role_id ${where}`,
+    params
+  );
+
+  return { users, total: countRow?.total || 0, page, limit };
+}
+
 async function getById(id, schoolId = null) {
   let sql = `SELECT u.*, r.slug AS role_slug FROM users u
              JOIN roles r ON r.id = u.role_id WHERE u.id = ? AND u.deleted_at IS NULL`;
@@ -182,4 +214,4 @@ async function softDeleteStudent(studentId, schoolId, actorId) {
   });
 }
 
-module.exports = { list, getById, getPassword, create, update, softDeleteStudent, ROLE_IDS };
+module.exports = { list, listAll, getById, getPassword, create, update, softDeleteStudent, ROLE_IDS };

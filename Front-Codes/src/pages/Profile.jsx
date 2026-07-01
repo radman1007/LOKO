@@ -49,7 +49,7 @@ const Profile = () => {
   const loadTickets = async () => {
     setTicketsLoading(true);
     try {
-      const res = await apiClient.get('v1/tickets');
+      const res = await apiClient.get('/tickets');
       if (res.data.success && Array.isArray(res.data.data)) setTickets(res.data.data);
       else setTickets([]);
     } catch (error) { setTickets([]); }
@@ -72,7 +72,7 @@ const Profile = () => {
     if (!ticketSubject.trim() || !ticketMessage.trim()) return alert('لطفاً موضوع و متن تیکت را وارد کنید');
     setUpdating(true);
     try {
-      await apiClient.post('v1/tickets', { subject: ticketSubject, message: ticketMessage, priority: ticketPriority });
+      await apiClient.post('/tickets', { subject: ticketSubject, message: ticketMessage, priority: ticketPriority });
       alert('✅ تیکت با موفقیت ارسال شد');
       setShowTicketModal(false);
       setTicketSubject('');
@@ -87,7 +87,7 @@ const Profile = () => {
     if (!replyMessage.trim()) return alert('لطفاً متن پاسخ را وارد کنید');
     setUpdating(true);
     try {
-      await apiClient.post(`v1/tickets/${selectedTicket.id}/reply`, { message: replyMessage });
+      await apiClient.post(`/tickets/${selectedTicket.id}/reply`, { message: replyMessage });
       alert('✅ پاسخ ارسال شد');
       setReplyMessage('');
       setShowReplyModal(false);

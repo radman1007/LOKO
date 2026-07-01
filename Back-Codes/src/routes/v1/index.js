@@ -44,6 +44,7 @@ router.put('/schools/:id', authenticate, authorize(PERMISSIONS.SCHOOLS_WRITE), s
 router.delete('/schools/:id', authenticate, authorize(PERMISSIONS.SCHOOLS_DELETE), schoolController.remove);
 
 // ─── Users ──────────────────────────────────────────────────
+router.get('/users', authenticate, authorize(PERMISSIONS.USERS_READ), userController.listAll);
 router.get('/schools/:schoolId/users', authenticate, authorize(PERMISSIONS.USERS_READ), tenantScope, userController.list);
 router.post('/schools/:schoolId/users', authenticate, authorize(PERMISSIONS.USERS_WRITE), validate(userCreateSchema), userController.create);
 router.get('/users/:id', authenticate, authorize(PERMISSIONS.USERS_READ), userController.get);

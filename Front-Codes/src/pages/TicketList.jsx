@@ -38,7 +38,7 @@ const TicketList = ({ user, colors, isMobile }) => {
   const loadTickets = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('v1/tickets');
+      const res = await apiClient.get('/tickets');
       console.log('Tickets API response:', res.data);
       
       if (res.data.success) {
@@ -64,7 +64,7 @@ const TicketList = ({ user, colors, isMobile }) => {
 
     setUpdating(true);
     try {
-      await apiClient.post('v1/tickets', newTicket);
+      await apiClient.post('/tickets', newTicket);
       alert('✅ تیکت با موفقیت ارسال شد');
       setShowNewTicket(false);
       setNewTicket({ subject: '', message: '', priority: 'medium' });
@@ -86,7 +86,7 @@ const TicketList = ({ user, colors, isMobile }) => {
 
     setUpdating(true);
     try {
-      await apiClient.post(`v1/tickets/${selectedTicket.id}/reply`, {
+      await apiClient.post(`/tickets/${selectedTicket.id}/reply`, {
         message: replyMessage
       });
       alert('✅ پاسخ با موفقیت ارسال شد');
@@ -105,7 +105,7 @@ const TicketList = ({ user, colors, isMobile }) => {
   const handleStatusChange = async (ticketId, status) => {
     setUpdating(true);
     try {
-      await apiClient.patch(`v1/tickets/${ticketId}/status`, { status });
+      await apiClient.patch(`/tickets/${ticketId}/status`, { status });
       alert('✅ وضعیت تیکت تغییر کرد');
       await loadTickets();
     } catch (error) {
