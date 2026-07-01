@@ -223,9 +223,7 @@ const LukoClub = () => {
           </section>
 
           {/* بخش‌های عملکردی (تم سبزآبی از طریق colors؛ منطق بدون تغییر) */}
-          <div className="loko-anim" style={{ animationDelay: '60ms' }}>
-            <DayCard currentDay={currentDay} currentDayName={currentDayName} tasksCompletedCount={tasksCompletedCount} totalTasksCount={totalTasksCount} progressPercent={progressPercent} localMissionCompleted={localMissionCompleted} mainMissionData={mainMissionData} onCompleteMainMission={handleCompleteMainMission} colors={colors} isMobile={isMobile} />
-          </div>
+       
           <div className="loko-anim" style={{ animationDelay: '120ms' }}>
             <DailyMissions missions={todayMissionsList} completedTasks={localCompletedTasks} hasWatchedVideoToday={checkHasWatchedVideoToday} onVideoClick={openVideoModal} onNonVideoClick={handleNonVideoMission} colors={colors} isMobile={isMobile} pressedItem={pressedItem} setPressedItem={setPressedItem} />
           </div>

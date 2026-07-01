@@ -24,7 +24,7 @@ const LukoPadkast = ({ onPress, pressedItem }) => {
   return (
     <div style={{ marginBottom: 24, direction: 'rtl', width: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 26 }}>
       
-      {/* HEADER - کاملاً هماهنگ */}
+      {/* HEADER */}
       <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <div style={{ width: 22, height: 22, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -52,20 +52,24 @@ const LukoPadkast = ({ onPress, pressedItem }) => {
             <img src={carcter} alt="character" style={{ position: 'absolute', width: 170, left: -6, bottom: -6, objectFit: 'contain', zIndex: 2, pointerEvents: 'none', userSelect: 'none', filter: 'drop-shadow(0 12px 20px rgba(50,20,100,0.18))' }} />
           </div>
 
-
-
-          <div style={{ position: 'absolute', right: 20, top: 112, zIndex: 5 }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#5D4D87', marginBottom: 6 }}>قسمت ۷: جنگل اسرارآمیز</p>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#6C5A97' }}>۲۱:۴۵ دقیقه</div>
-          </div>
-
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 176, padding: 18, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', boxSizing: 'border-box', zIndex: 6 }}>
-            <div style={{ background: 'rgba(255,255,255,0.34)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.24)', borderRadius: 999, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7B57E8', boxShadow: '0 0 10px rgba(123,87,232,0.7)' }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#4E3B7B', whiteSpace: 'nowrap' }}>پادکست جدید</span>
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 176, padding: 18, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-end', gap: 10, boxSizing: 'border-box', zIndex: 6 }}>
+            {/* بج پادکست جدید - سمت راست */}
+            <div style={{ width: '100%', display: 'flex', direction: 'ltr', justifyContent: 'flex-end' }}>
+              <div style={{ background: 'rgba(255,255,255,0.34)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.24)', borderRadius: 999, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7B57E8', boxShadow: '0 0 10px rgba(123,87,232,0.7)' }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#4E3B7B', whiteSpace: 'nowrap' }}>پادکست جدید</span>
+              </div>
             </div>
-            <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(180deg,#FFFFFF 0%,#F8F4FF 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(90,60,160,0.16), inset 0 1px 1px rgba(255,255,255,0.8)', flexShrink: 0 }}>
-              <div style={{ width: 0, height: 0, borderTop: '10px solid transparent', borderBottom: '10px solid transparent', borderLeft: '16px solid #7B57E8', marginLeft: 5 }} />
+
+            {/* عنوان + دکمه پلی */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%' }}>
+              <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(180deg,#FFFFFF 0%,#F8F4FF 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(90,60,160,0.16), inset 0 1px 1px rgba(255,255,255,0.8)', flexShrink: 0 }}>
+                <div style={{ width: 0, height: 0, borderTop: '10px solid transparent', borderBottom: '10px solid transparent', borderLeft: '16px solid #7B57E8', marginLeft: 5 }} />
+              </div>
+              <div style={{ flex: 1, textAlign: 'right' }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#5D4D87', marginBottom: 4 }}>قسمت ۷: جنگل اسرارآمیز</p>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#6C5A97' }}>۲۱:۴۵ دقیقه</div>
+              </div>
             </div>
           </div>
         </MergedShape>

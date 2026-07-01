@@ -286,61 +286,65 @@ const Home = () => {
           </section>
 
           {/* ===== LOKO PODCAST (بازطراحی‌شده — هماهنگ با تم جدید) ===== */}
-          <section>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 2px 12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 12, background: 'linear-gradient(135deg,#8E6BE0,#6A48B0)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 6px 14px rgba(106,72,176,0.3)' }}>
-                  <span style={{ fontSize: 16 }} aria-hidden>🎧</span>
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <h2 style={{ color: colors.text, margin: 0 }}>لوکو پادکست</h2>
-                  <p style={{ margin: '1px 0 0', fontSize: 11.5, color: colors.textSoft, fontWeight: 600 }}>گوش بده و چیزهای جدید یاد بگیر!</p>
-                </div>
-              </div>
-              <button
-                {...pressable('/luko-podcast', 'pod_all', 'مشاهده همه پادکست‌ها')}
-                style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'transparent', border: 'none', color: '#7E57C2', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
-              >
-                مشاهده همه <HiOutlineChevronLeft size={14} />
-              </button>
-            </div>
+         <section>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 2px 12px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      <div style={{ width: 34, height: 34, borderRadius: 12, background: 'linear-gradient(135deg,#8E6BE0,#6A48B0)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 6px 14px rgba(106,72,176,0.3)' }}>
+        <span style={{ fontSize: 16 }} aria-hidden>🎧</span>
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <h2 style={{ color: colors.text, margin: 0 }}>لوکو پادکست</h2>
+        <p style={{ margin: '1px 0 0', fontSize: 11.5, color: colors.textSoft, fontWeight: 600 }}>گوش بده و چیزهای جدید یاد بگیر!</p>
+      </div>
+    </div>
+    <button
+      {...pressable('/luko-podcast', 'pod_all', 'مشاهده همه پادکست‌ها')}
+      style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'transparent', border: 'none', color: '#7E57C2', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+    >
+      مشاهده همه <HiOutlineChevronLeft size={14} />
+    </button>
+  </div>
 
-            <div
-              {...pressable('/luko-podcast', 'podcast_card', 'پخش پادکست جدید لوکو')}
-              className="loko-anim"
-              style={{
-                position: 'relative', overflow: 'hidden', borderRadius: 24,
-                background: 'linear-gradient(135deg, #8E6BE0 0%, #7B57E8 50%, #6A48B0 100%)',
-                minHeight: 132, padding: '16px 18px', color: '#fff',
-                boxShadow: '0 16px 34px rgba(106,72,176,0.30)',
-                transform: scale('podcast_card'), transition: 'transform .12s ease',
-              }}
-            >
-              <div style={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', top: -80, right: -40 }} />
-              <div style={{ position: 'absolute', width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', bottom: -50, left: 30 }} />
+  <div
+    {...pressable('/luko-podcast', 'podcast_card', 'پخش پادکست جدید لوکو')}
+    className="loko-anim"
+    style={{
+      position: 'relative', overflow: 'hidden', borderRadius: 24,
+      background: 'linear-gradient(135deg, #8E6BE0 0%, #7B57E8 50%, #6A48B0 100%)',
+      minHeight: 132, padding: '16px 18px', color: '#fff',
+      boxShadow: '0 16px 34px rgba(106,72,176,0.30)',
+      transform: scale('podcast_card'), transition: 'transform .12s ease',
+    }}
+  >
+    <div style={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', top: -80, right: -40 }} />
+    <div style={{ position: 'absolute', width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', bottom: -50, left: 30 }} />
 
-              {/* کاراکتر */}
-              <img
-                src={PodcastChar} alt="" aria-hidden className="loko-float"
-                style={{ position: 'absolute', bottom: -6, left: 6, width: 118, objectFit: 'contain', zIndex: 2, pointerEvents: 'none', filter: 'drop-shadow(0 12px 20px rgba(50,20,100,0.28))' }}
-              />
+    <img
+      src={PodcastChar} alt="" aria-hidden className="loko-float"
+      style={{ position: 'absolute', bottom: -6, left: 6, width: 118, objectFit: 'contain', zIndex: 2, pointerEvents: 'none', filter: 'drop-shadow(0 12px 20px rgba(50,20,100,0.28))' }}
+    />
 
-              {/* محتوا */}
-              <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.20)', padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, backdropFilter: 'blur(6px)' }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff', boxShadow: '0 0 8px #fff' }} /> پادکست جدید
-                </span>
-                <h3 style={{ margin: '12px 0 4px', color: '#fff', maxWidth: '68%' }}>قسمت ۷: جنگل اسرارآمیز</h3>
-                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,0.88)' }}>🕒 ۲۱:۴۵ دقیقه</p>
-              </div>
+    <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right', height: '100%', justifyContent: 'flex-end', gap: 10 }}>
+      {/* بج پادکست جدید */}
+      <div style={{ width: '100%', display: 'flex', direction: 'ltr', justifyContent: 'flex-end' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.20)', padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, backdropFilter: 'blur(6px)' }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff', boxShadow: '0 0 8px #fff' }} /> پادکست جدید
+        </span>
+      </div>
 
-              {/* دکمه پخش */}
-              <div style={{ position: 'absolute', bottom: 16, right: 18, zIndex: 4, width: 54, height: 54, borderRadius: '50%', background: 'linear-gradient(180deg,#FFFFFF,#F5EEFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(60,30,120,0.28)' }}>
-                <div style={{ width: 0, height: 0, borderTop: '9px solid transparent', borderBottom: '9px solid transparent', borderRight: '15px solid #7B57E8', marginRight: 4 }} />
-              </div>
-            </div>
-          </section>
-
+      {/* عنوان + دکمه پلی */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%' }}>
+        <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'linear-gradient(180deg,#FFFFFF,#F5EEFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 8px 20px rgba(60,30,120,0.28)' }}>
+          <div style={{ width: 0, height: 0, borderTop: '9px solid transparent', borderBottom: '9px solid transparent', borderRight: '15px solid #7B57E8', marginRight: 4 }} />
+        </div>
+        <div style={{ flex: 1, textAlign: 'right' }}>
+          <h3 style={{ margin: 0, color: '#fff' }}>قسمت ۷: جنگل اسرارآمیز</h3>
+          <p style={{ margin: '4px 0 0', fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,0.88)' }}>🕒 ۲۱:۴۵ دقیقه</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
           {/* ===== BOOKS ===== */}
           <section>
             {sectionHead('کتاب‌های من', '/books', 'books_all')}
