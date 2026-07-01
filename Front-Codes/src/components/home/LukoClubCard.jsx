@@ -33,7 +33,7 @@ const LukoClubCard = ({
       <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <img src={Icon11} alt="luko club" style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1F2544' }}>مامورت های امروز</h3>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1F2544' }}>ماموریت های امروز</h3>
         </div>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#7B8199', paddingRight: 30 }}>
         ماموریت های روزانه
