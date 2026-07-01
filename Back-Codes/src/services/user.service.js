@@ -214,4 +214,40 @@ async function softDeleteStudent(studentId, schoolId, actorId) {
   });
 }
 
-module.exports = { list, listAll, getById, getPassword, create, update, softDeleteStudent, ROLE_IDS };
+// حذف نرمِ هر کاربر (با رعایت دسترسی): team_admin همه به‌جز خودش و مدیرکل دیگر؛ سایرین فقط کاربران مدرسه‌ی خود
+async function softDelete(targetId, actor) {
+  const target = await getById(targetId); // بدون محدودیت مدرسه؛ کنترل دسترسی در ادامه
+  if (String(target.id) === String(actor.id)) {
+    throw new ForbiddenError('نمی‌توانید حساب خودتان را حذف کنید');
+  }
+  if (target.role_slug === ROLES.TEAM_ADMIN) {
+    throw new ForbiddenError('حساب مدیر کل قابل حذف نیست');
+  }
+  if (actor.role !== ROLES.TEAM_ADMIN) {
+    // مدیرمدرسه/معلم فقط کاربران مدرسه‌ی خودشان را می‌توانند حذف کنند
+    if (!actor.schoolId || target.school_id !== actor.schoolId) {
+      throw new ForbiddenError('دسترسی حذف این کاربر را ندارید');
+    }
+  }
+
+  await query('UPDATE users SET deleted_at = NOW(), is_active = 0 WHERE id = ?', [targetId]);
+  await query(
+    'UPDATE class_students SET is_visible = 0, deleted_at = NOW() WHERE student_id = ?',
+    [targetId]
+  );
+  // اگر معلم است، از تخصیص کلاس‌ها هم حذف شود
+  await query('DELETE FROM class_teachers WHERE teacher_id = ?', [targetId]);
+
+  await auditService.log({
+    userId: actor.id,
+    schoolId: target.school_id,
+    action: 'user.soft_delete',
+    entityType: 'user',
+    entityId: targetId,
+    newValues: { role: target.role_slug },
+  });
+
+  return { deleted: true };
+}
+
+module.exports = { list, listAll, getById, getPassword, create, update, softDeleteStudent, softDelete, ROLE_IDS };

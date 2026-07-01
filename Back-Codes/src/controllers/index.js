@@ -317,8 +317,12 @@ const userController = {
   },
   async softDelete(req, res, next) {
     try {
-      await userService.softDeleteStudent(req.params.id, req.user.schoolId, req.user.id);
-      return success(res, { deleted: true });
+      const result = await userService.softDelete(req.params.id, {
+        id: req.user.id,
+        role: req.user.role,
+        schoolId: req.user.schoolId,
+      });
+      return success(res, result);
     } catch (err) { next(err); }
   },
   async resetPassword(req, res, next) {

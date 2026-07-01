@@ -270,7 +270,7 @@ const AdminPanel = () => {
       await apiClient.delete(`/users/${id}`);
       await loadAllUsers();
     } catch (error) {
-      alert(error.response?.data?.message || 'خطا در حذف کاربر');
+      alert(error.response?.data?.error?.message || error.response?.data?.message || 'خطا در حذف کاربر');
     }
   };
 
