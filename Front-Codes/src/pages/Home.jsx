@@ -48,6 +48,8 @@ const Home = () => {
   const [activeNav, setActiveNav] = useState('خانه');
   const [pressedItem, setPressedItem] = useState(null);
   const [showMoodModal, setShowMoodModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifSeen, setNotifSeen] = useState(() => localStorage.getItem('luko_notifs_seen') || '');
   const [completedTasks] = useState(() => JSON.parse(localStorage.getItem('luko_completed_tasks')) || []);
 
   const streak = parseInt(localStorage.getItem('luko_current_day'), 10) || 0;
@@ -138,6 +140,38 @@ const Home = () => {
 
   const displayName = user?.firstName || user?.username?.replace('@', '') || 'دوست من';
 
+  // ===== اعلان‌ها =====
+  const missionsRemaining = useMemo(() => {
+    const total = getTodayMissions().missions.filter((m) => m.type === 'video').length;
+    return Math.max(total - completedTasks.length, 0);
+  }, [completedTasks]);
+
+  const notifications = useMemo(() => {
+    const list = [];
+    if (missionsRemaining > 0) {
+      list.push({ id: 'missions', icon: '🎯', color: '#FB8C00', title: 'مأموریت‌های امروزت', msg: `${missionsRemaining} مأموریت باقی مونده — انجامشون بده و سکه بگیر!`, path: '/luko-club' });
+    }
+    if (showMoodReminder) {
+      list.push({ id: 'mood', icon: '😊', color: '#4DB6AC', title: 'حالت چطوره؟', msg: 'وقتشه حال امروزت رو ثبت کنی.', path: '/luko-health' });
+    }
+    if (showSuggestion) {
+      list.push({ id: 'breath', icon: '🌬️', color: '#42A5F5', title: 'یه نفس عمیق بکش', msg: 'بیا با هم یه تمرین تنفس آرام انجام بدیم.', path: '/luko-health' });
+    }
+    list.push({ id: 'podcast', icon: '🎧', color: '#7E57C2', title: 'پادکست جدید اومده', msg: 'یه قسمت تازه برات آماده‌ست — گوش بده!', path: '/luko-podcast' });
+    list.push({ id: 'tv', icon: '📺', color: '#EC6E8A', title: 'ویدیوهای تازه', msg: 'ویدیوهای جدید در لوکو تلویزیون منتظرتن.', path: '/entertainment' });
+    return list;
+  }, [missionsRemaining, showMoodReminder, showSuggestion]);
+
+  const notifSignature = `${new Date().toDateString()}|${notifications.length}|${missionsRemaining}|${showMoodReminder ? 1 : 0}|${showSuggestion ? 1 : 0}`;
+  const hasUnread = notifications.length > 0 && notifSeen !== notifSignature;
+
+  const openNotifications = () => {
+    setShowNotifications(true);
+    setNotifSeen(notifSignature);
+    localStorage.setItem('luko_notifs_seen', notifSignature);
+  };
+  const handleNotifClick = (path) => { setShowNotifications(false); navigate(path); };
+
   return (
     <div style={{ minHeight: '100vh', background: colors.bg, fontFamily: "'Shoor', 'Shoor Rounded', sans-serif", direction: 'rtl', paddingBottom: '90px', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 'min(600px, 100%)' }}>
@@ -147,11 +181,17 @@ const Home = () => {
           onProfileClick={() => navigate('/profile')}
           rightAction={
             <div
-              role="button" tabIndex={0} aria-label="اعلان‌ها"
-              style={{ width: 52, height: 52, borderRadius: 18, background: 'linear-gradient(180deg,#FFFFFF 0%,#F8FAFF 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', boxShadow: '0 10px 20px rgba(0,0,0,0.06)', cursor: 'pointer' }}
+              role="button" tabIndex={0} aria-label={`اعلان‌ها${hasUnread ? ' (خوانده‌نشده)' : ''}`}
+              onClick={openNotifications}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNotifications(); } }}
+              style={{ width: 52, height: 52, borderRadius: 18, background: 'linear-gradient(180deg,#FFFFFF 0%,#F8FAFF 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', boxShadow: '0 10px 20px rgba(0,0,0,0.06)', cursor: 'pointer', outline: 'none' }}
             >
               <HiOutlineBell size={26} color="#202540" />
-              <div style={{ position: 'absolute', top: 12, right: 13, width: 9, height: 9, borderRadius: '50%', background: '#FF912F', border: '2px solid #fff' }} />
+              {hasUnread && (
+                <span style={{ position: 'absolute', top: 11, right: 12, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999, background: '#FF5252', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 800, lineHeight: 1 }}>
+                  {notifications.length}
+                </span>
+              )}
             </div>
           }
         />
@@ -378,6 +418,66 @@ const Home = () => {
         </div>
       </div>
 
+      {/* ===== پنل اعلان‌ها ===== */}
+      {showNotifications && (
+        <>
+          <div
+            onClick={() => setShowNotifications(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.28)', animation: 'notifFade .2s ease' }}
+          />
+          <div style={{ position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 'min(600px, 100%)', padding: '0 clamp(12px, 3vw, 16px)', zIndex: 201, direction: 'rtl' }}>
+            <div style={{ background: '#fff', borderRadius: 22, boxShadow: '0 22px 48px rgba(0,0,0,0.22)', overflow: 'hidden', animation: 'notifDown .28s ease' }}>
+              {/* هدر پنل */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid #F0F2F1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <HiOutlineBell size={20} color={colors.primaryDark} />
+                  <h2 style={{ margin: 0, color: colors.text }}>اعلان‌ها</h2>
+                </div>
+                <button
+                  onClick={() => setShowNotifications(false)}
+                  aria-label="بستن"
+                  style={{ background: '#F5F7F7', border: 'none', borderRadius: 10, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: colors.textSoft }}
+                >
+                  <HiOutlineChevronLeft size={18} style={{ transform: 'rotate(-90deg)' }} />
+                </button>
+              </div>
+
+              {/* لیست اعلان‌ها */}
+              <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                {notifications.length === 0 ? (
+                  <div style={{ padding: '40px 20px', textAlign: 'center', color: colors.textSoft }}>
+                    <div style={{ fontSize: 40, marginBottom: 8 }}>🔔</div>
+                    <p style={{ fontSize: 13, margin: 0 }}>فعلاً اعلان جدیدی نداری.</p>
+                  </div>
+                ) : (
+                  notifications.map((n, i) => (
+                    <div
+                      key={n.id}
+                      role="button" tabIndex={0}
+                      aria-label={n.title}
+                      onClick={() => handleNotifClick(n.path)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotifClick(n.path); } }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 18px', cursor: 'pointer', borderTop: i === 0 ? 'none' : '1px solid #F5F7F7', outline: 'none', transition: 'background .15s ease' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#F7FAFA'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <div style={{ width: 42, height: 42, borderRadius: 14, background: `${n.color}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>
+                        <span aria-hidden>{n.icon}</span>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: colors.text }}>{n.title}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: 12, color: colors.textSoft, fontWeight: 600, lineHeight: 1.5 }}>{n.msg}</p>
+                      </div>
+                      <HiOutlineChevronLeft size={18} color="#C5CFCD" style={{ flexShrink: 0 }} />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <MoodModal isOpen={showMoodModal} moodOptions={moodOptions} onSelectMood={handleMoodSelect} onDismiss={dismissReminder} />
 
       {showSuggestion && !showMoodModal && (
@@ -398,6 +498,8 @@ const Home = () => {
         @keyframes homeSlideUp { from { transform: translate(-50%, 100px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
         @keyframes homeFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes homeFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+        @keyframes notifFade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes notifDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
         .loko-anim { animation: homeFadeUp .45s ease both; }
         .loko-float { animation: homeFloat 3.4s ease-in-out infinite; }
         ::-webkit-scrollbar { display: none; }
