@@ -8,14 +8,11 @@ import {
 } from 'react-icons/hi';
 
 import Header from '../components/common/Header';
+import { videoService } from '../services/video.service';
 import Banner36 from '../icons/icon36.png'; import Banner37 from '../icons/icon37.png';
 import Banner38 from '../icons/icon38.png'; import Banner39 from '../icons/icon39.png';
 import Banner40 from '../icons/icon40.png'; import Banner41 from '../icons/icon41.png';
 import Icon3 from '../icons/icon3.png';
-
-import VideoCapitan from '../video/capitan.mp4';
-import VideoShabihsaz from '../video/shabihsaz.mp4';
-import VideoVadeakhar from '../video/vadeakhar.mp4';
 
 import { getTodayVideoMission, hasWatchedVideoToday as checkVideoWatchedToday, registerVideoWatch } from '../data/dailyMissionsData';
 
@@ -24,6 +21,42 @@ const colors = {
   text: '#37474F', textSecondary: '#78909C', textSoft: '#78909C', navBg: '#FFFFFF',
   coin: '#F6B100', border: '#E5EBEA',
   purple: '#BA68C8', yellow: '#F6B100', red: '#EC6E8A', orange: '#FB8C00',
+};
+
+// تصاویر جایگزین برای پوستر ویدیوهایی که thumbnail ندارند
+const FALLBACK_IMAGES = [Banner36, Banner37, Banner38, Banner39, Banner40];
+
+// آدرس پایه‌ی مدیا (سرو فایل‌های /uploads توسط بک‌اند، خارج از /api/v1)
+const MEDIA_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1').replace(/\/api\/v1\/?$/, '');
+const mediaUrl = (u) => { if (!u) return null; if (/^https?:\/\//i.test(u)) return u; return `${MEDIA_BASE}${u.startsWith('/') ? '' : '/'}${u}`; };
+
+const formatDuration = (sec) => { const s = parseInt(sec, 10) || 0; const m = Math.floor(s / 60); const r = s % 60; return `${m}:${String(r).padStart(2, '0')}`; };
+
+// نگاشت ویدیوی بک‌اند به ساختار کارت (فقط داده‌ی API)
+const mapApiVideo = (v, i) => {
+  const src = mediaUrl(v.file_url);
+  return {
+    id: v.id,
+    title: v.title,
+    image: mediaUrl(v.thumbnail_url) || FALLBACK_IMAGES[i % FALLBACK_IMAGES.length],
+    duration: v.duration_seconds ? formatDuration(v.duration_seconds) : '—',
+    xp: 30 + (i % 5) * 5,
+    videoTitle: v.title,
+    isVideo: !!src,
+    video: src,
+    subject: v.category_name || 'ویدیوی آموزشی',
+  };
+};
+
+// تکرار لیست تا رسیدن به حداقل تعداد (برای پر شدن اسلایدرها در نسخه MVP)
+const fillList = (list, min) => {
+  if (!list || !list.length) return [];
+  const out = [];
+  for (let i = 0; out.length < min; i += 1) {
+    const base = list[i % list.length];
+    out.push({ ...base, key: `${base.id}-${i}` });
+  }
+  return out;
 };
 
 const LukoTV = () => {
@@ -47,24 +80,43 @@ const LukoTV = () => {
   const [selectedVideoXp, setSelectedVideoXp] = useState(0);
   const [todayVideoMission, setTodayVideoMission] = useState(null);
   const [videoRef, setVideoRef] = useState(null);
+  const [apiVideos, setApiVideos] = useState([]);
 
   const autoScrollInterval = useRef(null);
 
   useEffect(() => { const videoMission = getTodayVideoMission(); setTodayVideoMission(videoMission); }, []);
 
+  // دریافت لیست واقعی ویدیوها از بک‌اند (در صورت خطا/نبودِ ویدیو، fallback محلی استفاده می‌شود)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await videoService.getVideos({ limit: 100 });
+        if (mounted && res?.success && Array.isArray(res.data)) {
+          setApiVideos(res.data.map(mapApiVideo));
+        }
+      } catch (e) { /* fallback محلی */ }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const saveVideoProgress = (videoTitle, currentTime, duration) => { if (!duration) return; const progressPercent = (currentTime / duration) * 100; localStorage.setItem(`video_progress_${videoTitle}`, Math.floor(progressPercent)); localStorage.setItem(`video_time_${videoTitle}`, currentTime); };
 
-  const banners = useMemo(() => [ { id: 1, src: Banner36, title: 'سفر به اعماق کهکشان', subject: 'علوم پایه چهارم', duration: '15:30', xp: 50, videoTitle: 'سفر به اعماق کهکشان' }, { id: 2, src: Banner37, title: 'ماجراجویی‌های ریاضی', subject: 'ریاضی پایه سوم', duration: '12:15', xp: 45, videoTitle: 'ماجراجویی‌های ریاضی' }, { id: 3, src: Banner38, title: 'قصه‌های شنیدنی فارسی', subject: 'فارسی پایه چهارم', duration: '18:45', xp: 40, videoTitle: 'قصه‌های شنیدنی فارسی' }, { id: 4, src: Banner39, title: 'ورزش و مهارت', subject: 'ورزش پایه دوم', duration: '10:00', xp: 35, videoTitle: 'ورزش و مهارت' }, { id: 5, src: Banner40, title: 'داستان و سرگرمی', subject: 'داستان پایه اول', duration: '14:20', xp: 30, videoTitle: 'داستان و سرگرمی' } ], []);
+  // منبع ویدیوها فقط از بک‌اند (API)
+  const sourceVideos = apiVideos;
+  const hasVideos = sourceVideos.length > 0;
+
+  // اسلایدرها با تکرار لیست کامل ویدیوها پر می‌شوند (نسخه MVP، تعداد ویدیو کم است)
+  const banners = useMemo(() => fillList(sourceVideos, 5).map((v) => ({ id: v.key, src: v.image, title: v.title, subject: v.subject || 'ویدیوی آموزشی', duration: v.duration, xp: v.xp, videoTitle: v.videoTitle })), [sourceVideos]);
   const scrollBanners = useMemo(() => [ { id: 1, src: Banner41, title: 'بنر ویژه ۱' }, { id: 2, src: Banner41, title: 'بنر ویژه ۲' }, { id: 3, src: Banner41, title: 'بنر ویژه ۳' } ], []);
 
-  const videoItems = useMemo(() => [ { id: 1, title: 'کاپیتان', image: Banner36, duration: '05:30', xp: 30, videoTitle: 'کاپیتان', isVideo: true, video: VideoCapitan }, { id: 2, title: 'شبیه ساز', image: Banner37, duration: '07:15', xp: 35, videoTitle: 'شبیه ساز', isVideo: true, video: VideoShabihsaz }, { id: 3, title: 'واده آخر', image: Banner38, duration: '06:45', xp: 32, videoTitle: 'واده آخر', isVideo: true, video: VideoVadeakhar } ], []);
+  const featuredVideos = useMemo(() => fillList(sourceVideos, 6), [sourceVideos]);
+  const continueWatching = useMemo(() => fillList(sourceVideos, 6), [sourceVideos, refreshKey]);
+  const mathAdventures = useMemo(() => fillList(sourceVideos, 6), [sourceVideos]);
+  const persianStories = useMemo(() => fillList(sourceVideos, 6), [sourceVideos]);
+  const smartSuggestions = useMemo(() => fillList(sourceVideos, 6), [sourceVideos]);
 
-  const continueWatching = useMemo(() => { return videoItems.filter(video => { const progress = localStorage.getItem(`video_progress_${video.videoTitle}`); return progress && parseInt(progress, 10) > 0 && parseInt(progress, 10) < 100; }).map(video => ({ ...video, progress: parseInt(localStorage.getItem(`video_progress_${video.videoTitle}`) || '0', 10), isVideo: true })); }, [videoItems, refreshKey]);
-  const mathAdventures = useMemo(() => [ { id: 1, title: 'ریاضی پایه سوم', image: Banner37, duration: '12:15', xp: 45, videoTitle: 'ریاضی پایه سوم' }, { id: 2, title: 'ریاضی پایه چهارم', image: Banner36, duration: '15:30', xp: 50, videoTitle: 'ریاضی پایه چهارم' }, { id: 3, title: 'ریاضی پایه پنجم', image: Banner38, duration: '18:45', xp: 55, videoTitle: 'ریاضی پایه پنجم' } ], []);
-  const persianStories = useMemo(() => [ { id: 1, title: 'کاپیتان', image: Banner36, duration: '05:30', xp: 30, isVideo: true, videoTitle: 'کاپیتان', video: VideoCapitan }, { id: 2, title: 'شبیه ساز', image: Banner37, duration: '07:15', xp: 35, isVideo: true, videoTitle: 'شبیه ساز', video: VideoShabihsaz }, { id: 3, title: 'واده آخر', image: Banner38, duration: '06:45', xp: 32, isVideo: true, videoTitle: 'واده آخر', video: VideoVadeakhar }, { id: 4, title: 'شیر و موش', image: Banner38, duration: '8:30', xp: 30, videoTitle: 'شیر و موش' } ], []);
-  const smartSuggestions = useMemo(() => [ { id: 1, title: 'کاپیتان', image: Banner36, duration: '05:30', xp: 50, isVideo: true, videoTitle: 'کاپیتان', video: VideoCapitan }, { id: 2, title: 'شبیه ساز', image: Banner37, duration: '07:15', xp: 55, isVideo: true, videoTitle: 'شبیه ساز', video: VideoShabihsaz }, { id: 3, title: 'واده آخر', image: Banner38, duration: '06:45', xp: 52, isVideo: true, videoTitle: 'واده آخر', video: VideoVadeakhar }, { id: 4, title: 'ریاضی پیشرفته', image: Banner37, duration: '18:30', xp: 80, videoTitle: 'ریاضی پیشرفته' } ], []);
-
-  const allSections = useMemo(() => [ { id: 'تماشا شده', title: 'ادامه تماشا', data: continueWatching, color: colors.purple, showProgress: true }, { id: 'ریاضی', title: 'ماجراجویی‌های ریاضی', data: mathAdventures, color: colors.yellow, showProgress: false }, { id: 'فارسی', title: 'قصه‌های فارسی', data: persianStories, color: colors.red, showProgress: false }, { id: 'پیشنهادی', title: 'پیشنهاد هوشمند لوکو', data: smartSuggestions, color: colors.primary, showProgress: false } ], [continueWatching, mathAdventures, persianStories, smartSuggestions]);
+  const allSections = useMemo(() => [ { id: 'تماشا شده', title: 'ادامه تماشا', data: continueWatching, color: colors.purple, showProgress: false }, { id: 'ریاضی', title: 'ماجراجویی‌های ریاضی', data: mathAdventures, color: colors.yellow, showProgress: false }, { id: 'فارسی', title: 'قصه‌های فارسی', data: persianStories, color: colors.red, showProgress: false }, { id: 'پیشنهادی', title: 'پیشنهاد هوشمند لوکو', data: smartSuggestions, color: colors.primary, showProgress: false } ], [continueWatching, mathAdventures, persianStories, smartSuggestions]);
   const filteredSections = allSections.filter(section => activeFilters.includes(section.id));
   const filterButtons = useMemo(() => [ { id: 'تماشا شده', title: 'ادامه تماشا', color: colors.purple }, { id: 'ریاضی', title: 'ماجراجویی‌های ریاضی', color: colors.yellow }, { id: 'فارسی', title: 'قصه‌های فارسی', color: colors.red }, { id: 'پیشنهادی', title: 'پیشنهاد هوشمند لوکو', color: colors.primary } ], []);
 
@@ -79,14 +131,14 @@ const LukoTV = () => {
   useEffect(() => { const timer = setTimeout(() => setIsFirstLoad(false), 500); return () => clearTimeout(timer); }, []);
   useEffect(() => { if (!isFirstLoad) { if (autoScrollInterval.current) clearInterval(autoScrollInterval.current); autoScrollInterval.current = setInterval(() => { setCurrentBanner((prev) => (prev + 1) % banners.length); }, 5000); } return () => { if (autoScrollInterval.current) clearInterval(autoScrollInterval.current); }; }, [isFirstLoad, banners.length]);
 
-  useEffect(() => { if (!isFirstLoad && searchQuery.length > 0) { const allVideos = [...continueWatching, ...mathAdventures, ...persianStories, ...smartSuggestions]; const results = allVideos.filter(video => video.title.toLowerCase().includes(searchQuery.toLowerCase())); setFilteredData(results); } else if (!isFirstLoad) { setFilteredData(null); } }, [searchQuery, isFirstLoad, continueWatching, mathAdventures, persianStories, smartSuggestions]);
+  useEffect(() => { if (!isFirstLoad && searchQuery.length > 0) { const results = sourceVideos.filter(video => video.title.toLowerCase().includes(searchQuery.toLowerCase())); setFilteredData(results); } else if (!isFirstLoad) { setFilteredData(null); } }, [searchQuery, isFirstLoad, sourceVideos]);
 
   const toggleFilter = useCallback((filterId) => { setActiveFilters(prev => prev.includes(filterId) ? prev.filter(f => f !== filterId) : [...prev, filterId]); }, []);
   const handleTouchStart = useCallback((e) => { if (autoScrollInterval.current) clearInterval(autoScrollInterval.current); setTouchStart(e.touches[0].clientX); setTouchEnd(null); }, []);
   const handleTouchMove = useCallback((e) => setTouchEnd(e.touches[0].clientX), []);
   const handleTouchEnd = useCallback(() => { if (!touchStart || !touchEnd) return; const diff = touchStart - touchEnd; if (Math.abs(diff) > 50) { setCurrentBanner((prev) => (diff > 0 ? (prev + 1) : (prev - 1 + banners.length)) % banners.length); } setTouchStart(null); setTouchEnd(null); if (autoScrollInterval.current) clearInterval(autoScrollInterval.current); autoScrollInterval.current = setInterval(() => setCurrentBanner((prev) => (prev + 1) % banners.length), 5000); }, [touchStart, touchEnd, banners.length]);
 
-  const currentBannerData = banners[currentBanner];
+  const currentBannerData = banners[currentBanner] || banners[0] || null;
 
   // ─── کارت ویدیو (تم روشن) ───
   const VideoCard = useCallback(({ item, showProgress = false, isVideo = false }) => {
@@ -201,7 +253,16 @@ const LukoTV = () => {
             </div>
           )}
 
-          {!filteredData && (
+          {/* حالت خالی — هیچ ویدیویی از API نیامده */}
+          {!filteredData && !hasVideos && (
+            <div className="loko-anim" style={{ textAlign: 'center', padding: '60px 20px', color: colors.textSecondary }}>
+              <div style={{ fontSize: 52, marginBottom: 12 }}>📺</div>
+              <h2 style={{ color: colors.text, margin: '0 0 6px' }}>هنوز ویدیویی اضافه نشده</h2>
+              <p style={{ fontSize: 13, margin: 0 }}>به‌زودی ویدیوهای آموزشی اینجا نمایش داده می‌شوند.</p>
+            </div>
+          )}
+
+          {!filteredData && hasVideos && currentBannerData && (
             <>
               {/* بنر چرخشی */}
               <div className="loko-anim" style={{ position: 'relative', marginBottom: 22 }}>
@@ -259,7 +320,7 @@ const LukoTV = () => {
                   {sectionHead(section.title, section.color)}
                   {section.data.length > 0 ? (
                     <div style={{ display: 'flex', overflowX: 'auto', gap: 14, paddingBottom: 6 }}>
-                      {section.data.map((item) => <VideoCard key={item.id} item={item} showProgress={section.showProgress && (item.progress > 0 || item.isVideo)} isVideo={item.isVideo || false} />)}
+                      {section.data.map((item) => <VideoCard key={item.key || item.id} item={item} showProgress={section.showProgress && (item.progress > 0 || item.isVideo)} isVideo={item.isVideo || false} />)}
                     </div>
                   ) : (
                     <p style={{ color: colors.textSecondary, fontSize: 12.5, padding: '6px 2px' }}>فعلاً موردی اینجا نیست.</p>
@@ -271,7 +332,7 @@ const LukoTV = () => {
               <div className="loko-anim" style={{ marginBottom: 26 }}>
                 {sectionHead('ویدیوهای ویژه', colors.orange)}
                 <div style={{ display: 'flex', overflowX: 'auto', gap: 14, paddingBottom: 6 }}>
-                  {videoItems.map((video) => <VideoCard key={video.id} item={video} isVideo={true} />)}
+                  {featuredVideos.map((video) => <VideoCard key={video.key || video.id} item={video} isVideo={true} />)}
                 </div>
               </div>
 

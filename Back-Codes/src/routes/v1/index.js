@@ -85,18 +85,19 @@ router.get('/games/:gameId', authenticate, authorize(PERMISSIONS.BOOKS_READ), bo
 router.post('/games/:gameId/complete', authenticate, authorize(PERMISSIONS.BOOKS_READ), bookController.completeGame);
 
 // ─── Content: Videos (Loko TV) ──────────────────────────────
-router.get('/videos/latest-by-category', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.latestVideosByCategory);
-router.get('/videos', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.listVideos);
-router.get('/videos/:id', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.getVideo);
+// مرور محتوا عمومی است (بدون احراز هویت) تا مهمان‌ها هم ببینند
+router.get('/videos/latest-by-category', contentController.latestVideosByCategory);
+router.get('/videos', contentController.listVideos);
+router.get('/videos/:id', contentController.getVideo);
 router.post('/videos', authenticate, authorize(PERMISSIONS.CONTENT_WRITE), mediaUpload.single('file'), contentController.uploadVideo);
 router.put('/videos/:id', authenticate, authorize(PERMISSIONS.CONTENT_WRITE), contentController.updateVideo);
 router.delete('/videos/:id', authenticate, authorize(PERMISSIONS.CONTENT_DELETE), contentController.deleteVideo);
-router.get('/content/categories/:type', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.listCategories);
+router.get('/content/categories/:type', contentController.listCategories);
 router.post('/content/interactions', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.recordInteraction);
 
 // ─── Content: Podcasts (Loko Podcast) ───────────────────────
 router.get('/podcasts/daily', authenticate, authorize(PERMISSIONS.CONTENT_READ), podcastController.daily);
-router.get('/podcasts', authenticate, authorize(PERMISSIONS.CONTENT_READ), contentController.listPodcasts);
+router.get('/podcasts', contentController.listPodcasts);
 router.post('/podcasts', authenticate, authorize(PERMISSIONS.CONTENT_WRITE), mediaUpload.single('file'), contentController.uploadPodcast);
 router.put('/podcasts/:id', authenticate, authorize(PERMISSIONS.CONTENT_WRITE), contentController.updatePodcast);
 router.delete('/podcasts/:id', authenticate, authorize(PERMISSIONS.CONTENT_DELETE), contentController.deletePodcast);
