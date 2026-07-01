@@ -2,19 +2,21 @@ const { query, queryOne } = require('../database/connection');
 const { NotFoundError } = require('../utils/errors');
 const auditService = require('./audit.service');
 
-// ========== ویدیوها - ساده شده ==========
+// ========== ویدیوها ==========
 async function listVideos({ categoryId = null, search = null, page = 1, limit = 20 } = {}) {
   const offset = (page - 1) * limit;
-  let sql = 'SELECT * FROM videos';
+  let sql = `SELECT v.*, c.name_fa AS category_name
+             FROM videos v
+             LEFT JOIN content_categories c ON c.id = v.category_id`;
   const params = [];
   const conditions = [];
 
   if (categoryId) {
-    conditions.push('category_id = ?');
+    conditions.push('v.category_id = ?');
     params.push(categoryId);
   }
   if (search) {
-    conditions.push('(title LIKE ? OR description LIKE ?)');
+    conditions.push('(v.title LIKE ? OR v.description LIKE ?)');
     params.push(`%${search}%`, `%${search}%`);
   }
 
@@ -22,12 +24,12 @@ async function listVideos({ categoryId = null, search = null, page = 1, limit = 
     sql += ' WHERE ' + conditions.join(' AND ');
   }
 
-  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  sql += ' ORDER BY v.created_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);
 
   const videos = await query(sql, params);
 
-  let countSql = 'SELECT COUNT(*) as total FROM videos';
+  let countSql = 'SELECT COUNT(*) as total FROM videos v';
   if (conditions.length > 0) {
     countSql += ' WHERE ' + conditions.join(' AND ');
   }
@@ -37,19 +39,21 @@ async function listVideos({ categoryId = null, search = null, page = 1, limit = 
   return { videos, total: countResult?.total || 0, page, limit };
 }
 
-// ========== پادکست‌ها - ساده شده ==========
+// ========== پادکست‌ها ==========
 async function listPodcasts({ categoryId = null, moodSlug = null, page = 1, limit = 20 } = {}) {
   const offset = (page - 1) * limit;
-  let sql = 'SELECT * FROM podcasts';
+  let sql = `SELECT p.*, c.name_fa AS category_name
+             FROM podcasts p
+             LEFT JOIN content_categories c ON c.id = p.category_id`;
   const params = [];
   const conditions = [];
 
   if (categoryId) {
-    conditions.push('category_id = ?');
+    conditions.push('p.category_id = ?');
     params.push(categoryId);
   }
   if (moodSlug) {
-    conditions.push('mood_slug = ?');
+    conditions.push('p.mood_slug = ?');
     params.push(moodSlug);
   }
 
@@ -57,12 +61,12 @@ async function listPodcasts({ categoryId = null, moodSlug = null, page = 1, limi
     sql += ' WHERE ' + conditions.join(' AND ');
   }
 
-  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  sql += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);
 
   const podcasts = await query(sql, params);
 
-  let countSql = 'SELECT COUNT(*) as total FROM podcasts';
+  let countSql = 'SELECT COUNT(*) as total FROM podcasts p';
   if (conditions.length > 0) {
     countSql += ' WHERE ' + conditions.join(' AND ');
   }

@@ -88,6 +88,14 @@ const AdminPanel = () => {
 
   const isMobile = windowWidth < 768;
 
+  // تبدیل ثانیه به mm:ss
+  const formatDuration = (sec) => {
+    const s = parseInt(sec, 10) || 0;
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, '0')}`;
+  };
+
   // ========== بارگذاری ==========
   useEffect(() => {
     loadAllData();
@@ -354,7 +362,7 @@ const AdminPanel = () => {
   // ----- Videos -----
   const loadVideos = async () => {
     try {
-      const res = await apiClient.get('/videos');
+      const res = await apiClient.get('/videos', { params: { limit: 200 } });
       setVideos(res.data.success ? res.data.data || [] : []);
     } catch (error) {
       setVideos([]);
@@ -374,7 +382,7 @@ const AdminPanel = () => {
   // ----- Podcasts -----
   const loadPodcasts = async () => {
     try {
-      const res = await apiClient.get('/podcasts');
+      const res = await apiClient.get('/podcasts', { params: { limit: 200 } });
       setPodcasts(res.data.success ? res.data.data || [] : []);
     } catch (error) {
       setPodcasts([]);
@@ -828,9 +836,9 @@ const AdminPanel = () => {
                   <div>
                     <h3 style={{ fontSize: '14px', fontWeight: '600' }}>{v.title}</h3>
                     <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: colors.textSecondary }}>
-                      <span>{v.category}</span>
-                      <span>{v.duration}</span>
-                      {v.xp && <span style={{ color: colors.primary }}>+{v.xp} XP</span>}
+                      {(v.category_name || v.category) && <span>{v.category_name || v.category}</span>}
+                      {v.duration_seconds ? <span>{formatDuration(v.duration_seconds)}</span> : null}
+                      <span>👁 {v.view_count ?? 0}</span>
                     </div>
                   </div>
                   <button onClick={() => deleteVideo(v.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}>
@@ -859,9 +867,9 @@ const AdminPanel = () => {
                   <div>
                     <h3 style={{ fontSize: '14px', fontWeight: '600' }}>{p.title}</h3>
                     <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: colors.textSecondary }}>
-                      <span>{p.category}</span>
-                      <span>{p.duration}</span>
-                      {p.xp && <span style={{ color: colors.primary }}>+{p.xp} XP</span>}
+                      {(p.category_name || p.category) && <span>{p.category_name || p.category}</span>}
+                      {p.duration_seconds ? <span>{formatDuration(p.duration_seconds)}</span> : null}
+                      <span>▶ {p.play_count ?? 0}</span>
                     </div>
                   </div>
                   <button onClick={() => deletePodcast(p.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#F44336' }}>
@@ -1024,12 +1032,12 @@ const AdminPanel = () => {
 
       {/* مودال ویدیو */}
       {modals.video && (
-        <MediaModal type="video" onClose={() => setModals(prev => ({ ...prev, video: false }))} colors={colors} />
+        <MediaModal type="video" onClose={() => setModals(prev => ({ ...prev, video: false }))} onSaved={loadVideos} colors={colors} />
       )}
 
       {/* مودال پادکست */}
       {modals.podcast && (
-        <MediaModal type="podcast" onClose={() => setModals(prev => ({ ...prev, podcast: false }))} colors={colors} />
+        <MediaModal type="podcast" onClose={() => setModals(prev => ({ ...prev, podcast: false }))} onSaved={loadPodcasts} colors={colors} />
       )}
 
       {/* ====== نویگیشن موبایل ====== */}
@@ -1201,19 +1209,30 @@ const Modal = ({ title, onClose, onSave, colors, children, saveText = 'ثبت' }
 
 // ========== مودال ویدیو/پادکست ==========
 
-const MediaModal = ({ type, onClose, colors }) => {
+const MediaModal = ({ type, onClose, onSaved, colors }) => {
+  const isVideo = type === 'video';
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
-  const [duration, setDuration] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [categories, setCategories] = useState([]);
   const [durationSeconds, setDurationSeconds] = useState('');
-  const [xp, setXp] = useState(0);
   const [description, setDescription] = useState('');
+  const [sourceMode, setSourceMode] = useState('url'); // url | file
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
   const [file, setFile] = useState(null);
   const [fileName, setFileName] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  const categories = type === 'video' ? ['داستانی', 'آموزشی', 'علمی', 'سرگرمی'] : ['داستانی', 'آموزشی', 'انگیزشی', 'کودک'];
+  // بارگذاری دسته‌بندی‌های واقعی از بک‌اند
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiClient.get(`/content/categories/${type}`);
+        if (res.data.success) setCategories(res.data.data || []);
+      } catch (e) { setCategories([]); }
+    })();
+  }, [type]);
 
   const handleFileChange = (e) => {
     const f = e.target.files[0];
@@ -1221,53 +1240,88 @@ const MediaModal = ({ type, onClose, colors }) => {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !category || !duration || xp <= 0 || !file) {
-      alert('لطفاً همه فیلدها را کامل کنید');
-      return;
-    }
+    if (!title.trim()) { alert('لطفاً عنوان را وارد کنید'); return; }
+    if (sourceMode === 'url' && !mediaUrl.trim()) { alert('لطفاً آدرس فایل را وارد کنید'); return; }
+    if (sourceMode === 'file' && !file) { alert('لطفاً فایل را انتخاب کنید'); return; }
+
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('title', title.trim());
-      formData.append('category', category);
-      formData.append('duration', duration);
-      formData.append('duration_seconds', parseInt(durationSeconds) || 0);
-      formData.append('xp', Number(xp));
-      formData.append('description', description.trim() || '');
-      formData.append('file', file);
-      await apiClient.post(`/${type}s`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      alert('با موفقیت ثبت شد');
+      if (sourceMode === 'file') {
+        // آپلود فایل (multipart)
+        const formData = new FormData();
+        formData.append('title', title.trim());
+        if (categoryId) formData.append('categoryId', categoryId);
+        if (durationSeconds) formData.append('durationSeconds', parseInt(durationSeconds, 10) || 0);
+        if (description.trim()) formData.append('description', description.trim());
+        if (coverUrl.trim()) formData.append(isVideo ? 'thumbnailUrl' : 'coverUrl', coverUrl.trim());
+        formData.append('file', file);
+        await apiClient.post(`/${type}s`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      } else {
+        // ثبت با آدرس (JSON)
+        const payload = {
+          title: title.trim(),
+          fileUrl: mediaUrl.trim(),
+          description: description.trim() || null,
+        };
+        if (categoryId) payload.categoryId = Number(categoryId);
+        if (durationSeconds) payload.durationSeconds = parseInt(durationSeconds, 10) || 0;
+        if (coverUrl.trim()) payload[isVideo ? 'thumbnailUrl' : 'coverUrl'] = coverUrl.trim();
+        await apiClient.post(`/${type}s`, payload);
+      }
+      alert('✅ با موفقیت ثبت شد');
       onClose();
-      window.location.reload();
+      if (onSaved) await onSaved();
     } catch (error) {
-      alert(error.response?.data?.message || 'خطا در آپلود');
+      alert(error.response?.data?.error?.message || error.response?.data?.message || 'خطا در ثبت');
     } finally {
       setUploading(false);
     }
   };
 
+  const tabBtn = (active) => ({
+    flex: 1, padding: '8px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+    fontSize: '13px', fontWeight: 600,
+    background: active ? colors.primary : '#EEE', color: active ? '#fff' : colors.textSecondary,
+  });
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '24px', padding: '20px', width: '90%', maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>{type === 'video' ? 'ویدیو جدید' : 'پادکست جدید'}</h3>
+      <div style={{ background: 'white', borderRadius: '24px', padding: '20px', width: '90%', maxWidth: '420px', maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>{isVideo ? 'ویدیو جدید' : 'پادکست جدید'}</h3>
+
         <Input placeholder="عنوان *" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }}>
-          <option value="">دسته‌بندی *</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+
+        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ width: '100%', padding: '10px', border: `1px solid ${colors.primary}`, borderRadius: '10px', marginBottom: '10px', fontSize: '14px' }}>
+          <option value="">دسته‌بندی (اختیاری)</option>
+          {categories.map(c => <option key={c.id} value={c.id}>{c.name_fa || c.name_en || c.slug}</option>)}
         </select>
-        <Input placeholder="مدت زمان (مثال: 05:30) *" value={duration} onChange={(e) => setDuration(e.target.value)} />
-        <Input placeholder="مدت زمان به ثانیه" value={durationSeconds} onChange={(e) => setDurationSeconds(e.target.value)} type="number" />
-        <Input placeholder="امتیاز XP *" value={xp} onChange={(e) => setXp(parseInt(e.target.value) || 0)} type="number" />
-        <Input placeholder="توضیحات" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <div onClick={() => fileInputRef.current.click()} style={{ width: '100%', padding: '16px', border: `2px dashed ${colors.primary}`, borderRadius: '12px', textAlign: 'center', cursor: 'pointer', marginBottom: '16px', background: fileName ? `${colors.primary}10` : 'transparent' }}>
-          <HiOutlineUpload size={24} color={colors.primary} style={{ margin: '0 auto 8px' }} />
-          <p style={{ fontSize: '13px', color: fileName ? colors.primary : colors.textSecondary }}>{fileName || `فایل ${type === 'video' ? 'ویدیو' : 'صوتی'} را انتخاب کنید *`}</p>
-          <input ref={fileInputRef} type="file" accept={type === 'video' ? 'video/*' : 'audio/*'} onChange={handleFileChange} style={{ display: 'none' }} />
+
+        <Input placeholder="مدت زمان به ثانیه (اختیاری)" value={durationSeconds} onChange={(e) => setDurationSeconds(e.target.value)} type="number" />
+        <Input placeholder="توضیحات (اختیاری)" value={description} onChange={(e) => setDescription(e.target.value)} />
+
+        {/* انتخاب روش: آدرس یا آپلود فایل */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+          <button type="button" onClick={() => setSourceMode('url')} style={tabBtn(sourceMode === 'url')}>🔗 آدرس (URL)</button>
+          <button type="button" onClick={() => setSourceMode('file')} style={tabBtn(sourceMode === 'file')}>📁 آپلود فایل</button>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+
+        {sourceMode === 'url' ? (
+          <>
+            <Input placeholder={`آدرس ${isVideo ? 'ویدیو' : 'صوت'} * (https://...)`} value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} />
+            <Input placeholder={`آدرس ${isVideo ? 'تصویر بندانگشتی' : 'کاور'} (اختیاری)`} value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} />
+          </>
+        ) : (
+          <div onClick={() => fileInputRef.current.click()} style={{ width: '100%', padding: '16px', border: `2px dashed ${colors.primary}`, borderRadius: '12px', textAlign: 'center', cursor: 'pointer', marginBottom: '16px', background: fileName ? `${colors.primary}10` : 'transparent' }}>
+            <HiOutlineUpload size={24} color={colors.primary} style={{ margin: '0 auto 8px' }} />
+            <p style={{ fontSize: '13px', color: fileName ? colors.primary : colors.textSecondary }}>{fileName || `فایل ${isVideo ? 'ویدیو' : 'صوتی'} را انتخاب کنید *`}</p>
+            <input ref={fileInputRef} type="file" accept={isVideo ? 'video/*' : 'audio/*'} onChange={handleFileChange} style={{ display: 'none' }} />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
           <button onClick={onClose} disabled={uploading} style={{ flex: 1, padding: '10px', background: '#E0E0E0', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>انصراف</button>
           <button onClick={handleSubmit} disabled={uploading} style={{ flex: 1, padding: '10px', background: colors.primary, border: 'none', borderRadius: '10px', color: 'white', cursor: uploading ? 'not-allowed' : 'pointer' }}>
-            {uploading ? 'در حال آپلود...' : 'ثبت'}
+            {uploading ? 'در حال ثبت...' : 'ثبت'}
           </button>
         </div>
       </div>

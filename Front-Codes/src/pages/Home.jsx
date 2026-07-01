@@ -3,9 +3,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { useHealth } from '../contexts/HealthContext';
-import { HiOutlineHome, HiOutlineUser, HiOutlineFire, HiOutlinePlay, HiOutlineHeart } from 'react-icons/hi';
+import { HiOutlineHome, HiOutlineUser, HiOutlineFire, HiOutlinePlay, HiOutlineHeart, HiOutlineBell } from 'react-icons/hi';
 
 import NavigationBar from '../components/common/NavigationBar';
+import Header from '../components/common/Header';
 import UserInfoCard from '../components/home/UserInfoCard';
 import ActionButtons from '../components/home/ActionButtons';
 import LukoClubCard from '../components/home/LukoClubCard';
@@ -71,6 +72,17 @@ const Home = () => {
   return (
     <div style={{ minHeight: '100vh', background: "#f2f2f2fb", fontFamily: "'Shoor', 'Shoor Rounded', sans-serif", direction: 'rtl', paddingBottom: '80px', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 'min(600px, 100%)', padding: 'clamp(12px, 3vw, 20px) clamp(12px, 3vw, 16px) 80px clamp(12px, 3vw, 16px)' }}>
+        <Header
+          user={user}
+          showGreeting
+          onProfileClick={() => navigate('/profile')}
+          rightAction={
+            <div style={{ width: 52, height: 52, borderRadius: 18, background: 'linear-gradient(180deg,#FFFFFF 0%,#F8FAFF 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', boxShadow: '0 10px 20px rgba(0,0,0,0.06)', cursor: 'pointer' }}>
+              <HiOutlineBell size={26} color="#202540" />
+              <div style={{ position: 'absolute', top: 12, right: 13, width: 9, height: 9, borderRadius: '50%', background: '#FF912F', border: '2px solid #fff' }} />
+            </div>
+          }
+        />
         <UserInfoCard user={user} colors={colors} onPress={handleClick} pressedItem={pressedItem} />
         <LukoTVSection videos={lukoVideos} onPress={handleClick} pressedItem={pressedItem} colors={colors} />
         <LukoPadkast onPress={handleClick} pressedItem={pressedItem} />

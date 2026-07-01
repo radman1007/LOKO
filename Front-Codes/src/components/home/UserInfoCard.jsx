@@ -1,10 +1,6 @@
 import React from 'react';
-import {
-  HiOutlineBell,
-} from 'react-icons/hi';
 
 import Icon11 from '../../icons/icon55.png';
-import icon25 from '../../icons/icon25.png';
 
 /* =========================
    MERGED SHAPE
@@ -75,9 +71,6 @@ const UserInfoCard = ({
   onPress,
   pressedItem,
 }) => {
-  const displayUsername =
-    user?.username?.replace('@', '') || 'امیرعلی';
-
   return (
     <div
       style={{
@@ -86,115 +79,7 @@ const UserInfoCard = ({
         direction: 'rtl',
       }}
     >
-      {/* ================= HEADER BOX ================= */}
-
-      <div
-        style={{
-          width: '100%',
-          background: '#FFFFFF',
-          borderRadius: 28,
-          padding: '16px 18px',
-          marginBottom: 18,
-          boxShadow: '0 12px 28px rgba(0,0,0,0.06)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxSizing: 'border-box',
-        }}
-      >
-        {/* RIGHT SIDE */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
-          {/* AVATAR */}
-          <div
-            style={{
-              width: 60,
-              height: 60,
-              borderRadius: '50%',
-              overflow: 'hidden',
-              background: 'linear-gradient(135deg,#7EE7E1 0%,#63D5D0 100%)',
-              boxShadow: '0 10px 20px rgba(90,210,205,0.22)',
-              flexShrink: 0,
-            }}
-          >
-            <img
-              src={user?.avatar || icon25}
-              alt="avatar"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          </div>
-
-          {/* TEXT */}
-          <div>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 18,
-                fontWeight: 900,
-                color: '#1F2544',
-                marginBottom: 5,
-              }}
-            >
-              سلام {displayUsername}
-            </h2>
-
-            <p
-              style={{
-                margin: 0,
-                fontSize: 14,
-                fontWeight: 700,
-                color: '#7A819A',
-              }}
-            >
-              خوش برگشتی 
-            </p>
-          </div>
-        </div>
-
-        {/* BELL */}
-        <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 20,
-            background: 'linear-gradient(180deg,#FFFFFF 0%,#F8FAFF 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            boxShadow: '0 10px 20px rgba(0,0,0,0.06)',
-            flexShrink: 0,
-          }}
-        >
-          <HiOutlineBell
-            size={28}
-            color="#202540"
-          />
-
-          {/* DOT */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 13,
-              right: 14,
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: '#FF912F',
-              border: '2px solid #fff',
-            }}
-          />
-        </div>
-      </div>
+      {/* هدر بالای صفحه به کامپوننت مشترک Header منتقل شد (یکپارچگی هدر همه‌ی صفحات) */}
 
       {/* ================= CARD ================= */}
 
