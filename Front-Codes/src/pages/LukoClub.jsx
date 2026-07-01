@@ -110,7 +110,13 @@ const LukoClub = () => {
     
     const persianDays = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
     const today = new Date(); const jsDay = today.getDay(); let persianTodayIndex; if (jsDay === 6) persianTodayIndex = 0; else if (jsDay === 0) persianTodayIndex = 1; else if (jsDay === 1) persianTodayIndex = 2; else if (jsDay === 2) persianTodayIndex = 3; else if (jsDay === 3) persianTodayIndex = 4; else if (jsDay === 4) persianTodayIndex = 5; else persianTodayIndex = 6;
-    setWeekDays(persianDays.map((name, index) => { let status = 'future'; if (index === persianTodayIndex) status = 'today'; else if (index < persianTodayIndex) status = 'passed'; return { id: index + 1, name, status, isToday: status === 'today', isPassed: status === 'passed' }; }));
+    // فقط امروز و آن هم در صورت تکمیل تسک‌ها آتش می‌گیرد؛ روزهای گذشته بدون فعالیت واقعی خالی‌اند
+    const todayDone = videoOnlyMissions.length > 0 && localCompletedTasks.length >= videoOnlyMissions.length;
+    setWeekDays(persianDays.map((name, index) => {
+      const isToday = index === persianTodayIndex;
+      const done = isToday ? todayDone : false;
+      return { id: index + 1, name, done, isToday, isPassed: done, status: done ? 'passed' : (isToday ? 'today' : 'future') };
+    }));
   }, [localCompletedTasks]);
 
   const currentDayName = currentDay === 1 ? 'روز اول' : currentDay === 2 ? 'روز دوم' : currentDay === 3 ? 'روز سوم' : currentDay === 4 ? 'روز چهارم' : currentDay === 5 ? 'روز پنجم' : currentDay === 6 ? 'روز ششم' : currentDay === 7 ? 'روز هفتم' : `روز ${currentDay}`;
@@ -121,7 +127,7 @@ const LukoClub = () => {
   const rewards = backendRewards ? backendRewards.map((r, i) => ({ id: r.id, title: r.title, icon: REWARD_ICONS[i % REWARD_ICONS.length], price: r.cost_coins, description: r.description || '' })) : fallbackRewards;
 
   const MEDAL_ICONS = [Icon15, Icon16, Icon17, Icon18, Icon11, Icon12, Icon13, Icon14];
-  const fallbackMedals = [ { id: 1, name: 'مدال ریاضی', icon: Icon15, xpRequired: 200 }, { id: 2, name: 'مدال علوم', icon: Icon16, xpRequired: 300 }, { id: 3, name: 'مدال هنر', icon: Icon17, xpRequired: 400 }, { id: 4, name: 'مدال زبان', icon: Icon18, xpRequired: 500 }, { id: 5, name: 'مدال ورزش', icon: Icon11, xpRequired: 600 }, { id: 6, name: 'مدال موسیقی', icon: Icon12, xpRequired: 700 }, { id: 7, name: 'مدال برنامه‌نویسی', icon: Icon13, xpRequired: 800 }, { id: 8, name: 'مدال رهبری', icon: Icon14, xpRequired: 900 } ].map(medal => ({ ...medal, earned: localXP >= medal.xpRequired }));
+  const fallbackMedals = [ { id: 1, name: 'مدال ریاضی', icon: Icon15, xpRequired: 200 }, { id: 2, name: 'مدال علوم', icon: Icon16, xpRequired: 300 }, { id: 3, name: 'مدال هنر', icon: Icon17, xpRequired: 400 }, { id: 4, name: 'مدال زبان', icon: Icon18, xpRequired: 500 }, { id: 5, name: 'مدال ورزش', icon: Icon11, xpRequired: 600 }, { id: 6, name: 'مدال موسیقی', icon: Icon12, xpRequired: 700 }, { id: 7, name: 'مدال برنامه‌نویسی', icon: Icon13, xpRequired: 800 }, { id: 8, name: 'مدال رهبری', icon: Icon14, xpRequired: 900 } ].map(medal => ({ ...medal, earned: coins >= medal.xpRequired }));
   const medals = backendBadges && backendBadges.length > 0 ? backendBadges.map((b, i) => ({ id: b.id, name: b.name_fa, icon: MEDAL_ICONS[i % MEDAL_ICONS.length], xpRequired: b.criteria_value, earned: !!b.earned })) : fallbackMedals;
   const purchasedItems = JSON.parse(localStorage.getItem('lukoClubPurchased') || '[]');
 
@@ -164,12 +170,12 @@ const LukoClub = () => {
               borderRadius: '999px',
               boxShadow: '0 2px 8px rgba(236,183,53,0.15)'
             }}>
-              <HiOutlineAcademicCap size={16} color={colors.primaryDark} />
-              <span style={{ 
-                fontWeight: '700', 
-                color: colors.text, 
-                fontSize: 'clamp(11px, 3vw, 14px)' 
-              }}>{localXP} XP</span>
+              <span style={{ fontSize: 'clamp(14px, 4vw, 18px)' }}>🪙</span>
+              <span style={{
+                fontWeight: '700',
+                color: colors.text,
+                fontSize: 'clamp(11px, 3vw, 14px)'
+              }}>{coins}</span>
             </div>
           }
           pressedItem={pressedItem} 
