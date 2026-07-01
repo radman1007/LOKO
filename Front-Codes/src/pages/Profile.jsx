@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { useHealth } from '../contexts/HealthContext';
 import apiClient from '../services/api.client';
+import { healthService } from '../services/mood.service';
 import { HiOutlineHome, HiOutlineUser, HiOutlineFire, HiOutlinePlay, HiOutlineHeart, HiOutlineLogout, HiOutlineTicket, HiOutlinePlus, HiOutlineCheck, HiOutlineX, HiOutlineClock, HiOutlineShoppingBag, HiOutlineAcademicCap, HiOutlineLockClosed } from 'react-icons/hi';
 
 import Header from '../components/common/Header';
@@ -23,8 +24,22 @@ const Profile = () => {
   const [ticketMessage, setTicketMessage] = useState(''); const [ticketPriority, setTicketPriority] = useState('medium');
   const [selectedTicket, setSelectedTicket] = useState(null); const [replyMessage, setReplyMessage] = useState('');
   const [updating, setUpdating] = useState(false); const [showReplyModal, setShowReplyModal] = useState(false);
+  const [healthStats, setHealthStats] = useState(null); // آمار واقعی سلامت از بک‌اند
 
   useEffect(() => { loadTickets(); }, [user]);
+
+  // بارگذاری آمار واقعی سلامت (لوکو سلامت) — برای هر کاربر واقعی
+  useEffect(() => {
+    if (user?.isGuest) { setHealthStats(null); return; }
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await healthService.getStats();
+        if (mounted && res?.success) setHealthStats(res.data);
+      } catch (e) { if (mounted) setHealthStats(null); }
+    })();
+    return () => { mounted = false; };
+  }, [user]);
   const loadTickets = async () => { if (user?.isGuest) { setTickets([]); return; } setTicketsLoading(true); try { const res = await apiClient.get('/tickets'); if (res.data.success && Array.isArray(res.data.data)) setTickets(res.data.data); else setTickets([]); } catch (error) { setTickets([]); } finally { setTicketsLoading(false); } };
 
   const handleLogout = () => { localStorage.clear(); sessionStorage.clear(); document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); }); if (user?.resetHealthData) user.resetHealthData(); window.location.href = '/login'; };
@@ -40,10 +55,20 @@ const Profile = () => {
   const shopItems = [ { id: 1, title: 'استیکر سکه', icon: Icon3, price: 50 }, { id: 2, title: 'پروفایل ویژه', icon: Icon14, price: 75 }, { id: 3, title: 'پس زمینه ویژه', icon: Icon19, price: 100 }, { id: 4, title: 'استیکر ویژه', icon: Icon20, price: 120 } ];
   const myPurchasedItems = shopItems.filter(item => purchasedIds.includes(item.id));
 
-  const todayStats = getTodayStats(); const weeklyStats = getWeeklyStats();
-  const monthlyStats = Array.from({ length: 30 }, (_, i) => ({ day: i + 1, focusScore: Math.floor(Math.random() * 80) + 20, hasMood: Math.random() > 0.3 }));
-  const yearlyStats = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'].map((m) => ({ day: m, focusScore: Math.floor(Math.random() * 100), hasMood: Math.random() > 0.2 }));
-  const getChartData = () => { if (activeStatTab === 'daily') return [{ day: 'امروز', focusScore: todayStats.focusScore || 10, hasMood: true }]; if (activeStatTab === 'monthly') return monthlyStats; if (activeStatTab === 'yearly') return yearlyStats; return weeklyStats; };
+  // آمار واقعی از بک‌اند؛ در حالت مهمان از داده‌ی محلی HealthContext استفاده می‌شود
+  const localToday = getTodayStats();
+  const localWeekly = getWeeklyStats();
+  const todayStats = healthStats?.today || localToday;
+  const weeklyStats = healthStats?.weekly || localWeekly;
+  const monthlyStats = healthStats?.monthly || [];
+  const yearlyStats = healthStats?.yearly || [];
+  const wellbeing = healthStats?.wellbeing || null;
+  const getChartData = () => {
+    if (activeStatTab === 'daily') return [{ day: 'امروز', focusScore: todayStats.focusScore || 0, hasMood: !!todayStats.hasMood }];
+    if (activeStatTab === 'monthly') return monthlyStats;
+    if (activeStatTab === 'yearly') return yearlyStats;
+    return weeklyStats;
+  };
 
   const colors = { primary: '#4DB6AC', primaryDark: '#00897B', bg: '#F5F7FA', cardBg: '#FFFFFF', text: '#2D3436', textSecondary: '#636E72', primaryLight: '#E0F2F1', gold: '#F9CA24' };
 
@@ -77,6 +102,34 @@ const Profile = () => {
             </div>
             <div style={{ fontSize: 'clamp(22px, 6vw, 28px)', fontWeight: '900', color: '#FF5722' }}>{currentStreak}</div>
           </div>
+
+          {/* شاخص سلامت روان (لوکو سلامت) — داده‌ی واقعی */}
+          {wellbeing && (
+            <div style={{ background: 'white', borderRadius: '20px', padding: 'clamp(14px, 3vw, 20px)', marginBottom: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
+              <h3 style={{ margin: '0 0 14px', color: colors.text }}>لوکو سلامت</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                {/* دایره‌ی امتیاز */}
+                <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                  <svg width="72" height="72" viewBox="0 0 72 72" style={{ transform: 'rotate(-90deg)' }}>
+                    <circle cx="36" cy="36" r="30" fill="none" stroke="#EEF1F4" strokeWidth="8" />
+                    <circle cx="36" cy="36" r="30" fill="none" stroke={wellbeing.score >= 55 ? '#4DB6AC' : wellbeing.score >= 40 ? '#F9CA24' : '#FF7043'} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${(wellbeing.score / 100) * 188.4} 188.4`} />
+                  </svg>
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 20, fontWeight: 900, color: colors.text }}>{wellbeing.score}</span>
+                    <span style={{ fontSize: 9, color: colors.textSecondary }}>از ۱۰۰</span>
+                  </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 800, color: colors.text }}>وضعیت: {wellbeing.label}</p>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, color: colors.textSecondary, background: colors.primaryLight, padding: '4px 10px', borderRadius: 999 }}>😊 حال: {wellbeing.factors?.mood ?? 0}٪</span>
+                    <span style={{ fontSize: 11, color: colors.textSecondary, background: colors.primaryLight, padding: '4px 10px', borderRadius: 999 }}>🫁 تنفس: {wellbeing.factors?.breathing ?? 0}٪</span>
+                    <span style={{ fontSize: 11, color: colors.textSecondary, background: colors.primaryLight, padding: '4px 10px', borderRadius: 999 }}>🌱 باغ: {wellbeing.factors?.garden ?? 0}٪</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Stats */}
           <div style={{ background: 'white', borderRadius: '20px', padding: 'clamp(14px, 3vw, 20px)', marginBottom: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>

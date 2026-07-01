@@ -1,7 +1,7 @@
 const express = require('express');
 const {
   authController, moodController, podcastController, taskController,
-  gardenController, aiController, schoolController, userController,
+  gardenController, healthController, aiController, schoolController, userController,
   ticketController, secretController, breathingController, reportController,
   importController, auditController, contentController, classController,
   parentController, clubController, bookController,
@@ -136,6 +136,9 @@ router.get('/club/streak', authenticate, authorize(PERMISSIONS.CLUB_ACCESS), clu
 // ─── Garden ─────────────────────────────────────────────────
 router.get('/garden', authenticate, authorize(PERMISSIONS.GARDEN_MANAGE_OWN), gardenController.getState);
 router.get('/garden/wellbeing', authenticate, authorize(PERMISSIONS.GARDEN_MANAGE_OWN), gardenController.wellbeing);
+
+// ─── Health stats (نمودار پروفایل) ─────────────────────────
+router.get('/health/stats', authenticate, authorize(PERMISSIONS.MOOD_READ_OWN), healthController.stats);
 
 // ─── AI ─────────────────────────────────────────────────────
 router.post('/ai/analyze', authenticate, authorize(PERMISSIONS.AI_CHAT), aiController.analyze);

@@ -53,4 +53,12 @@ export const gardenService = {
   },
 };
 
+export const healthService = {
+  // آمار کامل سلامت (daily/weekly/monthly/yearly + شاخص سلامت روان)
+  getStats: async () => {
+    const response = await apiClient.get('/health/stats');
+    return response.data;
+  },
+};
+
 export default moodService;

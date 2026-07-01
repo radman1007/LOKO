@@ -14,6 +14,7 @@ const excelImportService = require('../services/excelImport.service');
 const contentService = require('../services/content.service');
 const classService = require('../services/class.service');
 const bookService = require('../services/book.service');
+const healthService = require('../services/health.service');
 const clubService = require('../services/club.service');
 const { query } = require('../database/connection');
 const { success, created } = require('../utils/response');
@@ -133,6 +134,16 @@ const gardenController = {
     } catch (err) {
       next(err);
     }
+  },
+};
+
+const healthController = {
+  // آمار کامل سلامت کاربر جاری (daily/weekly/monthly/yearly + شاخص سلامت)
+  async stats(req, res, next) {
+    try {
+      const result = await healthService.getHealthStats(req.user.id);
+      return success(res, result);
+    } catch (err) { next(err); }
   },
 };
 
@@ -637,6 +648,7 @@ module.exports = {
   podcastController,
   taskController,
   gardenController,
+  healthController,
   aiController,
   schoolController,
   userController,
