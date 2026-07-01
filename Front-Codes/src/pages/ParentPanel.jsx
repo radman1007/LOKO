@@ -13,15 +13,27 @@ import {
   HiOutlineBookOpen,
   HiOutlineStar,
   HiOutlineCalendar,
-  HiOutlineEmojiHappy
+  HiOutlineEmojiHappy,
+  HiOutlinePlus,
+  HiOutlineX,
+  HiOutlineKey
 } from 'react-icons/hi';
 import TicketList from '../components/common/TicketList';
+import { parentService } from '../services/parent.service';
 
 const ParentPanel = () => {
   const navigate = useNavigate();
   const { user, logout } = useUser();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('children');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  // ─── فرزندان (داده‌ی واقعی) ───
+  const [children, setChildren] = useState([]);
+  const [loadingChildren, setLoadingChildren] = useState(true);
+  const [showAddChild, setShowAddChild] = useState(false);
+  const [childForm, setChildForm] = useState({ firstName: '', lastName: '', nationalCode: '', phone: '' });
+  const [savingChild, setSavingChild] = useState(false);
+  const [newChildCred, setNewChildCred] = useState(null); // {username, password, firstName, lastName}
   
   const [student, setStudent] = useState(null);
   const [studentStats, setStudentStats] = useState({
@@ -44,7 +56,57 @@ const ParentPanel = () => {
 
   useEffect(() => {
     loadStudentData();
+    loadChildren();
   }, []);
+
+  const loadChildren = async () => {
+    setLoadingChildren(true);
+    try {
+      const res = await parentService.getChildren();
+      setChildren(res?.success ? (res.data || []) : []);
+    } catch (e) {
+      setChildren([]);
+    } finally {
+      setLoadingChildren(false);
+    }
+  };
+
+  const handleAddChild = async () => {
+    if (!childForm.firstName.trim() || !childForm.lastName.trim()) {
+      alert('لطفاً نام و نام خانوادگی فرزند را وارد کنید');
+      return;
+    }
+    setSavingChild(true);
+    try {
+      const res = await parentService.addChild({
+        firstName: childForm.firstName.trim(),
+        lastName: childForm.lastName.trim(),
+        nationalCode: childForm.nationalCode.trim() || null,
+        phone: childForm.phone.trim() || null,
+      });
+      if (res?.success) {
+        setNewChildCred(res.data); // نام کاربری و رمز تولیدشده
+        setChildForm({ firstName: '', lastName: '', nationalCode: '', phone: '' });
+        await loadChildren();
+      } else {
+        alert('خطا در افزودن فرزند');
+      }
+    } catch (e) {
+      alert(e.response?.data?.error?.message || 'خطا در افزودن فرزند');
+    } finally {
+      setSavingChild(false);
+    }
+  };
+
+  const handleRemoveChild = async (childId, name) => {
+    if (!window.confirm(`آیا از حذف «${name}» از فرزندان خود مطمئن هستید؟`)) return;
+    try {
+      await parentService.removeChild(childId);
+      await loadChildren();
+    } catch (e) {
+      alert('خطا در حذف فرزند');
+    }
+  };
 
   const loadStudentData = () => {
     const savedStudents = localStorage.getItem('luko_students');
@@ -81,6 +143,7 @@ const ParentPanel = () => {
   const colors = {
     primary: '#4DB6AC',
     primaryDark: '#80CBC4',
+    primaryLight: '#E0F2F1',
     bg: '#E8F5E9',
     cardBg: '#FFFFFF',
     text: '#455A64',
@@ -90,12 +153,14 @@ const ParentPanel = () => {
   };
 
   const sidebarTabs = [
+    { id: 'children', label: 'فرزندان من', icon: HiOutlineUsers },
     { id: 'dashboard', label: 'داشبورد', icon: HiOutlineChartBar },
     { id: 'progress', label: 'پیشرفت تحصیلی', icon: HiOutlineStar },
     { id: 'tickets', label: 'تیکت‌ها', icon: HiOutlineBookOpen }
   ];
 
   const mobileNavItems = [
+    { id: 'children', label: 'فرزندان', icon: HiOutlineUsers },
     { id: 'dashboard', label: 'داشبورد', icon: HiOutlineChartBar },
     { id: 'progress', label: 'پیشرفت', icon: HiOutlineStar },
     { id: 'tickets', label: 'تیکت‌ها', icon: HiOutlineBookOpen }
@@ -264,6 +329,61 @@ const ParentPanel = () => {
             >
               خروج
             </button>
+          </div>
+        )}
+
+        {activeTab === 'children' && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: '700' }}>فرزندان من</h2>
+              <button
+                onClick={() => { setNewChildCred(null); setShowAddChild(true); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', background: colors.primary, color: '#fff', border: 'none', borderRadius: '14px', padding: '10px 18px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(77,182,172,0.3)' }}
+              >
+                <HiOutlinePlus size={18} /> افزودن فرزند
+              </button>
+            </div>
+
+            {loadingChildren ? (
+              <p style={{ textAlign: 'center', color: colors.textSecondary, padding: '40px 0' }}>در حال بارگذاری...</p>
+            ) : children.length === 0 ? (
+              <div style={{ background: colors.cardBg, borderRadius: '20px', padding: '48px 24px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                <div style={{ fontSize: 56, marginBottom: 12 }}>👨‍👩‍👧‍👦</div>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: colors.text, marginBottom: '8px' }}>هنوز فرزندی اضافه نکرده‌اید</h3>
+                <p style={{ fontSize: '13px', color: colors.textSecondary, marginBottom: '20px' }}>برای مشاهده‌ی پیشرفت فرزندتان، ابتدا او را اضافه کنید.</p>
+                <button
+                  onClick={() => { setNewChildCred(null); setShowAddChild(true); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: colors.primary, color: '#fff', border: 'none', borderRadius: '14px', padding: '12px 24px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <HiOutlinePlus size={18} /> افزودن اولین فرزند
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '14px' }}>
+                {children.map((c) => (
+                  <div key={c.id} style={{ background: colors.cardBg, borderRadius: '18px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <HiOutlineEmojiHappy size={30} color={colors.primary} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 style={{ fontSize: '15px', fontWeight: 700, color: colors.text }}>{c.first_name} {c.last_name}</h3>
+                      <p style={{ fontSize: '11px', color: colors.textSecondary, marginTop: '2px' }}>نام کاربری: {c.username}</p>
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+                        <span style={{ fontSize: '12px', color: colors.primary }}>⭐ {c.total_points ?? 0} امتیاز</span>
+                        <span style={{ fontSize: '12px', color: colors.primary }}>🌱 سطح {c.garden_level ?? 1}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveChild(c.id, `${c.first_name} ${c.last_name}`)}
+                      style={{ background: '#FFEBEE', border: 'none', borderRadius: '10px', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#F44336', flexShrink: 0 }}
+                      title="حذف"
+                    >
+                      <HiOutlineX size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -436,6 +556,86 @@ const ParentPanel = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* مودال افزودن فرزند */}
+      {showAddChild && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+          onClick={() => { setShowAddChild(false); setNewChildCred(null); }}
+        >
+          <div
+            style={{ background: '#fff', borderRadius: '22px', padding: '22px', width: '100%', maxWidth: '400px', maxHeight: '88vh', overflowY: 'auto', direction: 'rtl' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '17px', fontWeight: 800, color: colors.text }}>افزودن فرزند</h3>
+              <button onClick={() => { setShowAddChild(false); setNewChildCred(null); }} style={{ background: '#F5F5F5', border: 'none', borderRadius: '10px', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <HiOutlineX size={18} />
+              </button>
+            </div>
+
+            {newChildCred ? (
+              // نمایش نام کاربری و رمز فرزند پس از ساخت
+              <div>
+                <div style={{ background: '#E8F5E9', borderRadius: '16px', padding: '18px', textAlign: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+                  <p style={{ fontSize: '15px', fontWeight: 800, color: colors.text, marginBottom: '4px' }}>
+                    {newChildCred.firstName} {newChildCred.lastName} اضافه شد
+                  </p>
+                  <p style={{ fontSize: '12px', color: colors.textSecondary }}>این اطلاعات را برای ورود فرزندتان نگه دارید</p>
+                </div>
+                <div style={{ background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: '14px', padding: '14px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <HiOutlineKey size={18} color="#F9A825" />
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#795548' }}>اطلاعات ورود فرزند</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '14px' }}>
+                    <span style={{ color: colors.textSecondary }}>نام کاربری:</span>
+                    <span style={{ fontWeight: 700, color: colors.text, fontFamily: 'monospace' }}>{newChildCred.username}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '14px' }}>
+                    <span style={{ color: colors.textSecondary }}>رمز عبور:</span>
+                    <span style={{ fontWeight: 700, color: colors.text, fontFamily: 'monospace' }}>{newChildCred.password}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setShowAddChild(false); setNewChildCred(null); }}
+                  style={{ width: '100%', padding: '12px', background: colors.primary, color: '#fff', border: 'none', borderRadius: '14px', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}
+                >
+                  متوجه شدم
+                </button>
+              </div>
+            ) : (
+              // فرم افزودن
+              <div>
+                {[
+                  { key: 'firstName', label: 'نام *', ph: 'مثلاً: آراد' },
+                  { key: 'lastName', label: 'نام خانوادگی *', ph: 'مثلاً: کریمی' },
+                  { key: 'nationalCode', label: 'کد ملی (اختیاری)', ph: '' },
+                  { key: 'phone', label: 'شماره موبایل (اختیاری)', ph: '' },
+                ].map((f) => (
+                  <div key={f.key} style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: colors.textSecondary, marginBottom: '6px', fontWeight: 600 }}>{f.label}</label>
+                    <input
+                      type="text"
+                      value={childForm[f.key]}
+                      placeholder={f.ph}
+                      onChange={(e) => setChildForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                      style={{ width: '100%', padding: '11px 14px', border: '1px solid #E0E0E0', borderRadius: '12px', fontSize: '14px', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }}
+                    />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                  <button onClick={() => setShowAddChild(false)} disabled={savingChild} style={{ flex: 1, padding: '12px', background: '#F0F2F5', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', color: colors.text }}>انصراف</button>
+                  <button onClick={handleAddChild} disabled={savingChild} style={{ flex: 1, padding: '12px', background: colors.primary, border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 700, cursor: savingChild ? 'not-allowed' : 'pointer', opacity: savingChild ? 0.6 : 1 }}>
+                    {savingChild ? 'در حال ثبت...' : 'افزودن'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
