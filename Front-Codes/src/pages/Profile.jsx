@@ -60,8 +60,8 @@ const Profile = () => {
   const handleSubmitTicket = async () => { if (user?.isGuest) { alert('برای ثبت تیکت باید ابتدا وارد حساب کاربری شوی. این قابلیت در حالت مهمان در دسترس نیست.'); return; } if (!ticketSubject.trim() || ticketSubject.trim().length < 3) return alert('موضوع تیکت باید حداقل ۳ کاراکتر باشد'); if (!ticketMessage.trim()) return alert('لطفاً متن تیکت را وارد کنید'); setUpdating(true); try { await apiClient.post('/tickets', { subject: ticketSubject.trim(), message: ticketMessage.trim(), priority: ticketPriority }); alert('✅ تیکت با موفقیت ارسال شد'); setShowTicketModal(false); setTicketSubject(''); setTicketMessage(''); setTicketPriority('medium'); await loadTickets(); } catch (error) { alert(error.response?.data?.error?.message || error.response?.data?.message || 'خطا در ارسال تیکت'); } finally { setUpdating(false); } };
   const handleReply = async () => { if (!replyMessage.trim()) return alert('لطفاً متن پاسخ را وارد کنید'); setUpdating(true); try { await apiClient.post(`/tickets/${selectedTicket.id}/reply`, { message: replyMessage.trim() }); alert('✅ پاسخ ارسال شد'); setReplyMessage(''); setShowReplyModal(false); setSelectedTicket(null); await loadTickets(); } catch (error) { alert(error.response?.data?.error?.message || error.response?.data?.message || 'خطا در ارسال پاسخ'); } finally { setUpdating(false); } };
 
-  // امتیاز و استریک واقعی از بک‌اند (بدون مقدار جعلی پیش‌فرض)
-  const currentXP = clubSummary?.points ?? 0;
+  // امتیاز واحد در کل برنامه = سکه‌ی بک‌اند (هماهنگ با کلاب/کتاب‌ها)
+  const currentXP = clubSummary?.coins ?? 0;
   const currentStreak = clubSummary?.streak ?? 0;
   const purchasedIds = JSON.parse(localStorage.getItem('lukoClubPurchased') || '[]');
 
@@ -104,7 +104,7 @@ const Profile = () => {
                 {user?.avatar ? <img src={user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <HiOutlineUser size={50} color="white" style={{ marginTop: '20px' }} />}
               </div>
               <h2 style={{ margin: 0, fontSize: 'clamp(18px, 5vw, 22px)', fontWeight: '900', marginBottom: '8px' }}>{user?.firstName || user?.username?.replace('@', '') || 'کاربر'}</h2>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', padding: '8px 20px', borderRadius: '50px', fontSize: 'clamp(12px, 3.5vw, 14px)', fontWeight: '700' }}><HiOutlineAcademicCap size={16} color={colors.gold} /> {currentXP} امتیاز</div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', padding: '8px 20px', borderRadius: '50px', fontSize: 'clamp(12px, 3.5vw, 14px)', fontWeight: '700' }}><span style={{ fontSize: 16 }} aria-hidden>🪙</span> {currentXP} امتیاز</div>
             </div>
           </div>
 

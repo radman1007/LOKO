@@ -377,7 +377,7 @@ const ParentPanel = () => {
                       </h3>
                       <p style={{ fontSize: '11px', color: colors.textSecondary, marginTop: '2px' }}>نام کاربری: {c.username}</p>
                       <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-                        <span style={{ fontSize: '12px', color: colors.primary }}>⭐ {c.total_points ?? 0} امتیاز</span>
+                        <span style={{ fontSize: '12px', color: colors.primary }}>🪙 {c.total_tokens ?? c.total_points ?? 0} امتیاز</span>
                         <span style={{ fontSize: '12px', color: colors.primary }}>🌱 سطح {c.garden_level ?? 1}</span>
                       </div>
                     </div>
@@ -425,7 +425,7 @@ const ParentPanel = () => {
                 <h3 style={{ fontSize: '18px', fontWeight: '700' }}>{student?.name || user?.child}</h3>
                 <p style={{ fontSize: '13px', color: colors.textSecondary }}>{classInfo?.name || 'کلاس'} | {schoolInfo?.name || 'مدرسه'}</p>
                 <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
-                  <span style={{ fontSize: '12px', color: colors.primary }}>⭐ {studentStats.xp} XP</span>
+                  <span style={{ fontSize: '12px', color: colors.primary }}>🪙 {studentStats.xp} امتیاز</span>
                   <span style={{ fontSize: '12px', color: colors.primary }}>🔥 {studentStats.streak} روز</span>
                 </div>
               </div>

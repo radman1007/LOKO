@@ -37,6 +37,8 @@ import TvBanner4 from '../icons/icon39.png';
 import TvBanner5 from '../icons/icon40.png';
 
 import { getTodayMissions } from '../data/dailyMissionsData';
+import { clubService } from '../services/task.service';
+import { getGuestCoins } from '../data/guestData';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -45,6 +47,7 @@ const Home = () => {
   const isMobile = true;
 
   const [userXP, setUserXP] = useState(() => parseInt(localStorage.getItem('luko_user_xp'), 10) || 0);
+  const [coins, setCoins] = useState(0); // امتیاز واحد = سکه‌ی بک‌اند
   const [activeNav, setActiveNav] = useState('خانه');
   const [pressedItem, setPressedItem] = useState(null);
   const [showMoodModal, setShowMoodModal] = useState(false);
@@ -62,6 +65,16 @@ const Home = () => {
   };
 
   useEffect(() => { localStorage.setItem('luko_user_xp', String(userXP)); }, [userXP]);
+
+  // امتیاز واحد (سکه) — واقعی از بک‌اند، برای مهمان از سکه‌ی محلی
+  useEffect(() => {
+    if (user?.isGuest) { setCoins(getGuestCoins()); return; }
+    let mounted = true;
+    (async () => {
+      try { const r = await clubService.getCoins(); if (mounted && r?.success) setCoins(r.data?.coins ?? 0); } catch (e) { /* ignore */ }
+    })();
+    return () => { mounted = false; };
+  }, [user]);
   useEffect(() => { setShowMoodModal(showMoodReminder); }, [showMoodReminder]);
 
   const lukoVideos = useMemo(() => ([
@@ -227,7 +240,7 @@ const Home = () => {
             {/* آمار سریع */}
             <div style={{ position: 'relative', display: 'flex', gap: 10, marginTop: 16 }}>
               {[
-                { icon: <HiOutlineLightningBolt size={16} />, val: userXP, label: 'امتیاز' },
+                { icon: '🪙', val: coins, label: 'امتیاز' },
                 { icon: <HiOutlineFire size={16} />, val: streak, label: 'روز فعال' },
                 { icon: '🎯', val: `${missionsDone}/${missionsTotal || '۰'}`, label: 'مأموریت' },
               ].map((s, i) => (

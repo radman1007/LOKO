@@ -83,7 +83,7 @@ async function addChild(parentId, childData) {
 async function listChildren(parentId) {
   return query(
     `SELECT u.id, u.username, u.first_name, u.last_name, u.is_active, u.grade,
-            sp.total_points, sp.garden_level
+            sp.total_points, sp.total_tokens, sp.garden_level
      FROM parent_student_relations psr
      JOIN users u ON u.id = psr.student_id
      LEFT JOIN student_profiles sp ON sp.user_id = u.id

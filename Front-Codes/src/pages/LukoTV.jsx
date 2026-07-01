@@ -9,6 +9,8 @@ import {
 
 import Header from '../components/common/Header';
 import { videoService } from '../services/video.service';
+import { clubService } from '../services/task.service';
+import { getGuestCoins } from '../data/guestData';
 import Banner36 from '../icons/icon36.png'; import Banner37 from '../icons/icon37.png';
 import Banner38 from '../icons/icon38.png'; import Banner39 from '../icons/icon39.png';
 import Banner40 from '../icons/icon40.png'; import Banner41 from '../icons/icon41.png';
@@ -81,8 +83,19 @@ const LukoTV = () => {
   const [todayVideoMission, setTodayVideoMission] = useState(null);
   const [videoRef, setVideoRef] = useState(null);
   const [apiVideos, setApiVideos] = useState([]);
+  const [coins, setCoins] = useState(0); // امتیاز واحد = سکه‌ی بک‌اند
 
   const autoScrollInterval = useRef(null);
+
+  // امتیاز واحد (سکه) — واقعی از بک‌اند، برای مهمان از سکه‌ی محلی
+  useEffect(() => {
+    if (user?.isGuest) { setCoins(getGuestCoins()); return; }
+    let mounted = true;
+    (async () => {
+      try { const r = await clubService.getCoins(); if (mounted && r?.success) setCoins(r.data?.coins ?? 0); } catch (e) { /* ignore */ }
+    })();
+    return () => { mounted = false; };
+  }, [user]);
 
   useEffect(() => { const videoMission = getTodayVideoMission(); setTodayVideoMission(videoMission); }, []);
 
@@ -188,7 +201,7 @@ const LukoTV = () => {
 
         <div style={{ padding: '10px 12px' }}>
           <p style={{ fontSize: 13, fontWeight: 700, color: colors.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>{item.title}</p>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, fontWeight: 700, color: colors.primaryDark, background: colors.primaryLight, padding: '3px 9px', borderRadius: 999 }}>⭐ +{item.xp} XP</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, fontWeight: 700, color: colors.primaryDark, background: colors.primaryLight, padding: '3px 9px', borderRadius: 999 }}>🪙 +{item.xp}</span>
         </div>
       </div>
     );
@@ -224,8 +237,8 @@ const LukoTV = () => {
           onProfileClick={() => navigate('/profile')}
           rightAction={
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(246,177,0,0.16)', padding: '8px 14px', borderRadius: 999, boxShadow: '0 2px 8px rgba(246,177,0,0.15)' }}>
-              <span style={{ fontSize: 15 }} aria-hidden>⭐</span>
-              <span style={{ fontWeight: 700, color: colors.text, fontSize: 14 }}>{currentXP}</span>
+              <span style={{ fontSize: 15 }} aria-hidden>🪙</span>
+              <span style={{ fontWeight: 700, color: colors.text, fontSize: 14 }}>{coins}</span>
             </div>
           }
         />

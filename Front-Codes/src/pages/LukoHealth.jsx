@@ -281,7 +281,7 @@ const LukoHealth = () => {
         </div>
         <div style={{ flex: 1, textAlign: 'right' }}>
           <h3 style={{ margin: 0, color: '#fff' }}>داستان‌های آرامش‌بخش</h3>
-          <p style={{ margin: '4px 0 0', fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>⭐ گوش بده و ۲۵ امتیاز بگیر</p>
+          <p style={{ margin: '4px 0 0', fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>🪙 گوش بده و ۲۵ امتیاز بگیر</p>
         </div>
       </div>
     </div>
