@@ -1,5 +1,5 @@
 # ============================================================
-# LOKO Frontend - Multi-stage build (CRA → nginx)
+# LOKO Frontend - Multi-stage build (Vite → nginx)
 # ============================================================
 
 # ─── Stage 1: Build ─────────────────────────────────────────
@@ -15,9 +15,8 @@ RUN npm ci
 COPY . .
 
 # آدرس API نسبی است تا nginx آن را به بک‌اند پروکسی کند
+# (توسط vite.config.js در زمان بیلد داخل باندل جای‌گذاری می‌شود)
 ENV REACT_APP_API_URL=/api/v1
-ENV GENERATE_SOURCEMAP=false
-ENV CI=false
 RUN npm run build
 
 # ─── Stage 2: Serve با nginx ────────────────────────────────
