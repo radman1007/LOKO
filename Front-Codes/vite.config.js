@@ -28,14 +28,17 @@ export default defineConfig(({ mode }) => {
 
     server: {
       port: 3001,
+      // 127.0.0.1 (نه localhost) تا در Node 18+ به‌جای IPv6 (::1) روی IPv4
+      // به بک‌اند/پورت‌مپ داکر وصل شود و از ECONNREFUSED جلوگیری شود.
+      // در صورت نیاز می‌توان با متغیر محیطی VITE_API_PROXY_TARGET override کرد.
       proxy: {
         '/api': {
-          target: 'http://localhost:3000',
+          target: env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:3000',
           changeOrigin: true,
           secure: false,
         },
         '/uploads': {
-          target: 'http://localhost:3000',
+          target: env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:3000',
           changeOrigin: true,
           secure: false,
         },

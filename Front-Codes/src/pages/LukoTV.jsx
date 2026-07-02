@@ -29,7 +29,8 @@ const colors = {
 const FALLBACK_IMAGES = [Banner36, Banner37, Banner38, Banner39, Banner40];
 
 // آدرس پایه‌ی مدیا (سرو فایل‌های /uploads توسط بک‌اند، خارج از /api/v1)
-const MEDIA_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1').replace(/\/api\/v1\/?$/, '');
+// نسبی می‌ماند تا از همان پروکسی (Vite در dev، nginx در prod) عبور کند.
+const MEDIA_BASE = (process.env.REACT_APP_API_URL || '/api/v1').replace(/\/api\/v1\/?$/, '');
 const mediaUrl = (u) => { if (!u) return null; if (/^https?:\/\//i.test(u)) return u; return `${MEDIA_BASE}${u.startsWith('/') ? '' : '/'}${u}`; };
 
 const formatDuration = (sec) => { const s = parseInt(sec, 10) || 0; const m = Math.floor(s / 60); const r = s % 60; return `${m}:${String(r).padStart(2, '0')}`; };

@@ -2,9 +2,11 @@
 import axios from 'axios';
 
 // ✅ آدرس پایه - شامل نسخه v1.
-// در توسعه به بک‌اند لوکال، در production از طریق nginx به /api/v1 پروکسی می‌شود.
+// پیش‌فرض «نسبی» است تا در dev از طریق پروکسی Vite (server.proxy) و در
+// production از طریق nginx به بک‌اند برسد — هر دو same-origin و بدون نیاز به CORS.
+// در production توسط Dockerfile مقدار REACT_APP_API_URL=/api/v1 جای‌گذاری می‌شود.
 const API_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:3000/api/v1';
+  process.env.REACT_APP_API_URL || '/api/v1';
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 const log = (...args) => { if (IS_DEV) console.log(...args); };
