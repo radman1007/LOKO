@@ -21,16 +21,15 @@ export default defineConfig(({ mode }) => {
     },
 
     // حفظ رفتار process.env.REACT_APP_API_URL موجود در کد بدون تغییر سورس.
-    // process.env.NODE_ENV را خود Vite به‌صورت خودکار مدیریت می‌کند.
     define: {
       'process.env.REACT_APP_API_URL': JSON.stringify(apiUrl),
     },
 
     server: {
+      host: true,
       port: 3001,
-      // 127.0.0.1 (نه localhost) تا در Node 18+ به‌جای IPv6 (::1) روی IPv4
-      // به بک‌اند/پورت‌مپ داکر وصل شود و از ECONNREFUSED جلوگیری شود.
-      // در صورت نیاز می‌توان با متغیر محیطی VITE_API_PROXY_TARGET override کرد.
+      allowedHosts: ['luko.ir', 'www.luko.ir'],
+
       proxy: {
         '/api': {
           target: env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:3000',
