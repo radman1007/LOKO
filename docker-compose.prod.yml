@@ -1,10 +1,12 @@
 # ============================================================
-# LOKO Platform - Full-stack Production Compose
-# سرویس‌ها: mysql, redis, api (Node), web (React+nginx)
-# اجرا:  docker compose -f docker-compose.prod.yml up -d --build
+# LOKO Platform — Full-stack Production Compose
+# سرویس‌ها: mysql, redis, api (Node.js), web (React + nginx)
+# اجرا:   docker compose -f docker-compose.prod.yml up -d --build
+# پیش‌نیاز: یک فایل .env کنار همین فایل (از روی .env.prod.example)
 # ============================================================
 
 services:
+  # ─── دیتابیس MySQL ───
   mysql:
     image: mysql:8.0
     container_name: loko-mysql
@@ -23,8 +25,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    # پورت دیتابیس عمداً روی هاست باز نمی‌شود (فقط داخل شبکه‌ی داکر امن‌تر است).
+    # اگر برای اتصال ابزار خارجی لازم داری، خط زیر را از کامنت خارج کن (ریسک امنیتی):
+    # ports:
+    #   - "3306:3306"
     networks: [loko]
 
+  # ─── کش Redis ───
   redis:
     image: redis:7-alpine
     container_name: loko-redis
@@ -36,37 +43,50 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    # مثل دیتابیس، پورت ردیس به‌صورت پیش‌فرض روی هاست باز نمی‌شود.
+    # ports:
+    #   - "6379:6379"
     networks: [loko]
 
+  # ─── بک‌اند Node.js ───
   api:
     build: ./Back-Codes
     container_name: loko-api
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      # اجرای خودکار مهاجرت‌ها و داده‌های اولیه در اولین اجرا (server.js پشتیبانی می‌کند)
       AUTO_MIGRATE: "true"
       PORT: 3000
       API_VERSION: v1
+      # دیتابیس: DB_HOST باید دقیقاً نام سرویس داکر باشد → mysql
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: ${DB_USER:-root}
       DB_PASSWORD: ${DB_PASSWORD:-Radman123}
       DB_NAME: ${DB_NAME:-loko}
+      # ردیس: کد از REDIS_HOST/REDIS_PORT استفاده می‌کند (نه REDIS_URL)
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_DB: 0
       REDIS_KEY_PREFIX: "loko:"
+      # JWT — حتماً در .env مقداردهی شود (وگرنه اجرا متوقف می‌شود)
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET in .env}
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
       BCRYPT_ROUNDS: 12
-      # nginx جلوی همان دامنه قرار دارد؛ same-origin پس CORS لازم نیست، اما برای انعطاف:
+      # چون فرانت و بک پشت یک nginx (same-origin) هستند، CORS لازم نیست؛ پیش‌فرض باز:
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX: 200
+      AUTH_RATE_LIMIT_MAX: 20
       UPLOAD_DIR: ./uploads
       MAX_FILE_SIZE_MB: 100
       MAX_EXCEL_SIZE_MB: 10
       MOOD_PROMPT_INTERVAL_HOURS: 4
       LOG_LEVEL: info
+      LOG_DIR: ./logs
     volumes:
       - loko_uploads:/app/uploads
       - loko_logs:/app/logs
@@ -75,8 +95,19 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    # بک‌اند پشت nginx است و نیازی به باز بودن روی هاست ندارد.
+    # برای دسترسی/دیباگ مستقیم روی پورت کد (۳۰۰۰)، خط زیر را از کامنت خارج کن:
+    # ports:
+    #   - "3000:3000"
     networks: [loko]
 
+  # ─── فرانت‌اند React (build) + nginx ───
   web:
     build: ./Front-Codes
     container_name: loko-web
@@ -84,7 +115,8 @@ services:
     ports:
       - "${WEB_PORT:-80}:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks: [loko]
 
 volumes:
